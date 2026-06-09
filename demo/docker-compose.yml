@@ -1,0 +1,50 @@
+# ============================================================
+# docker-compose.yml - 一键启动情感陪护虚拟数字人系统
+# ============================================================
+# 使用方法：
+#   docker compose up          # 前台启动（可看日志）
+#   docker compose up -d       # 后台启动
+#   docker compose down        # 停止并移除容器
+#   docker compose logs -f     # 查看实时日志
+#
+# 前提条件：
+#   1. 宿主机已安装 NVIDIA 驱动（>= 530）
+#   2. 已安装 NVIDIA Container Toolkit
+#      安装指南：https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+#   3. 已克隆 SoulX-FlashHead 并下载模型权重到宿主机
+#      修改下方 volumes 中的宿主机路径为实际路径
+# ============================================================
+
+services:
+  digital-human:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: digital-human:latest
+    container_name: digital-human
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # FlashHead 路径（容器内挂载点，与 .env 中保持一致）
+      - FLASHHEAD_REPO_DIR=/SoulX-FlashHead
+      - FLASHHEAD_CKPT_DIR=/SoulX-FlashHead/models/SoulX-FlashHead-1_3B
+      - FLASHHEAD_WAV2VEC_DIR=/SoulX-FlashHead/models/wav2vec2-base-960h
+      - FLASHHEAD_MODEL_TYPE=lite
+    volumes:
+      # 将宿主机的 SoulX-FlashHead 目录挂载到容器（只读）
+      # 修改左侧路径为宿主机实际路径，例如：
+      #   /home/user/SoulX-FlashHead:/SoulX-FlashHead:ro
+      - ../SoulX-FlashHead:/SoulX-FlashHead:ro
+    # GPU 支持：自动映射所有 GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

@@ -1,0 +1,248 @@
+/* ============================================================
+   温心陪伴 — 组件样式表
+   页面主体由 Tailwind(CDN) + index.html 内联 <style> 负责；
+   本文件只保留 Tailwind 难以表达 / 需要被 script.js 复用的组件样式。
+   旧版（非 Tailwind）整套布局样式已清理。
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   数字人显示框（正方形）
+   .digital-human-frame —— 正方形页框，按可用空间自适应大小，
+   居中，并以视口高度为预算上限，避免方框过高挤掉下方聊天/输入。
+   内部 video/封面用 object-fit: cover + 顶部对齐：铺满方框、不留空白，
+   裁剪时从底部裁（保住额头/面部）。
+   ============================================================ */
+.digital-human-frame {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, calc(100vh - 360px));
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.digital-human-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  border-radius: inherit;
+}
+
+.digital-human-container video,
+.digital-human-container .avatar-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.digital-human-container .avatar-poster {
+  z-index: 2;
+}
+
+/* ============================================================
+   方言切换按钮（左栏）
+   ============================================================ */
+.dialect-btn {
+  flex: 1;
+  padding: 7px 8px;
+  border: 2px solid #e8d5a8;
+  border-radius: 10px;
+  background: #fafafa;
+  color: #5c4a36;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.dialect-btn:hover {
+  border-color: #e89b4c;
+  color: #d87e2a;
+  background: #fdf9f1;
+}
+
+.dialect-btn.active {
+  border-color: #e89b4c;
+  background: #e89b4c;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ============================================================
+   自定义形象上传预览（选择页）
+   ============================================================ */
+.upload-preview {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-preview img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #e89b4c;
+  box-shadow: 0 4px 12px rgba(232, 155, 76, 0.25);
+}
+
+.upload-preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.select-btn {
+  background: #e89b4c;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.8rem;
+  border-radius: 30px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-btn:hover {
+  background: #d87e2a;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 0.7rem 1.8rem;
+  border-radius: 30px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #eee;
+}
+
+/* ============================================================
+   消息「思考中」提示
+   （气泡/头像等消息样式在 index.html 内联 <style> 中定义）
+   ============================================================ */
+.message-thinking {
+  color: #8b7a65;
+  font-style: italic;
+}
+
+/* ============================================================
+   用户管理弹窗列表项（由 script.js 动态渲染）
+   ============================================================ */
+.user-avatar-mini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f3e8cf;
+  color: #d87e2a;
+  font-weight: bold;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid #e8d5a8;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 6px;
+}
+
+.user-list-item:hover {
+  border-color: #e89b4c;
+  background: #fdf9f1;
+}
+
+.user-list-item.active {
+  border-color: #e89b4c;
+  background: #faf3e4;
+}
+
+.user-list-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #3d2e1f;
+}
+
+.user-list-delete {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 1.1rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.user-list-delete:hover {
+  color: #e5564e;
+  background: #fcebe9;
+}
+
+/* ============================================================
+   关怀模式（放大字号、加粗，便于老年用户阅读）
+   注：script.js 给 <body> 添加 .care-mode 类
+   ============================================================ */
+body.care-mode,
+body.care-mode button,
+body.care-mode input,
+body.care-mode .message,
+body.care-mode .session-item {
+  font-size: calc(1rem * 1.35) !important;
+}
+
+body.care-mode #messageInput,
+body.care-mode #userNameInput {
+  padding: 14px 16px !important;
+  border-width: 2px !important;
+}
+
+body.care-mode #sendBtn,
+body.care-mode .center-voice-btn,
+body.care-mode .select-btn {
+  font-weight: bold !important;
+}
+
+body.care-mode .session-item {
+  padding: 16px 14px !important;
+  margin-bottom: 10px !important;
+}
+
+/* ============================================================
+   响应式（窄屏）：方框以高度为准缩放
+   ============================================================ */
+@media (max-width: 1024px) {
+  /* 窄屏/堆叠布局时给方框一个固定比例，避免高度塌陷 */
+  .digital-human-frame {
+    aspect-ratio: 4 / 3;
+  }
+}

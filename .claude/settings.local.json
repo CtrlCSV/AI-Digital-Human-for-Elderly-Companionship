@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git rm *)",
+      "Bash(python -c ' *)",
+      "Bash(python -c *)",
+      "Bash(git checkout *)",
+      "Bash(node --check demo/public/script.js)",
+      "Bash(npx --version)",
+      "Bash(npm ls *)",
+      "Bash(mkdir -p \"/d/数字人/_preview\")",
+      "Read(//d/数字人/**)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(node shot.js)"
+    ]
+  }
+}
