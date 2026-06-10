@@ -915,6 +915,7 @@ function newConversation() {
   addMsgToSession('bot', welcome);
   setStatus(STATUS.speaking);
   wsSend({ type: 'new_session', sessionId: state.sessionId, userName: state.userName, userId: state.userId });
+  closeDrawers();
 }
 
 function selectSession(sessionId) {
@@ -922,6 +923,7 @@ function selectSession(sessionId) {
   renderSessionList();
   loadSessionMessages(sessionId);
   wsSend({ type: 'switch_session', sessionId: state.sessionId, userName: state.userName, userId: state.userId });
+  closeDrawers();
 }
 
 function loadSessionMessages(sessionId) {
@@ -992,6 +994,7 @@ function sendMessage() {
 }
 
 function sendQuickPhrase(phrase) {
+  closeQuickMenu();
   dom.messageInput.value = phrase;
   sendMessage();
   dom.messageInput.focus();
@@ -1007,6 +1010,51 @@ function toggleCareMode() {
 
 function applyCareModePreference() {
   if (localStorage.getItem('care-mode') === 'enabled') document.body.classList.add('care-mode');
+}
+
+// ---------------------- 对话历史抽屉（左侧滑出，底部含设置）----------------------
+function _toggleDrawerOverlay(show) {
+  const overlay = document.getElementById('drawerOverlay');
+  if (!overlay) return;
+  overlay.classList.toggle('opacity-0', !show);
+  overlay.classList.toggle('pointer-events-none', !show);
+}
+
+function openHistory() {
+  document.getElementById('historyDrawer')?.classList.remove('-translate-x-full');
+  _toggleDrawerOverlay(true);
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeDrawers() {
+  document.getElementById('historyDrawer')?.classList.add('-translate-x-full');
+  _toggleDrawerOverlay(false);
+}
+
+// 抽屉底部设置面板：展开/收起
+function toggleSettingsPanel() {
+  const panel   = document.getElementById('settingsPanel');
+  const chevron = document.getElementById('settingsChevron');
+  if (!panel) return;
+  const open = panel.classList.toggle('hidden') === false;
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+  if (open && window.lucide) lucide.createIcons();
+}
+
+// ---------------------- 快捷服务下拉列表 ----------------------
+function toggleQuickMenu() {
+  const menu    = document.getElementById('quickMenu');
+  const chevron = document.getElementById('quickMenuChevron');
+  if (!menu) return;
+  const open = menu.classList.toggle('hidden') === false;
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function closeQuickMenu() {
+  const menu    = document.getElementById('quickMenu');
+  const chevron = document.getElementById('quickMenuChevron');
+  if (menu)    menu.classList.add('hidden');
+  if (chevron) chevron.style.transform = '';
 }
 
 // =====================================================================
@@ -1385,6 +1433,11 @@ window.addEventListener('DOMContentLoaded', () => {
   dom.messageInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
   });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawers(); closeQuickMenu(); } });
+  // 点击快捷菜单外部时收起
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#quickMenu') && !e.target.closest('#quickMenuBtn')) closeQuickMenu();
+  });
 });
 
 window.selectAvatar = selectAvatar;
@@ -1392,6 +1445,10 @@ window.goBack = goBack;
 window.newConversation = newConversation;
 window.sendQuickPhrase = sendQuickPhrase;
 window.toggleCareMode = toggleCareMode;
+window.openHistory = openHistory;
+window.closeDrawers = closeDrawers;
+window.toggleSettingsPanel = toggleSettingsPanel;
+window.toggleQuickMenu = toggleQuickMenu;
 window.saveUserName = saveUserName;
 window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;

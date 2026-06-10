@@ -21,10 +21,9 @@
 .digital-human-frame {
   position: relative;
   width: 100%;
-  max-width: min(100%, calc(100vh - 360px));
   aspect-ratio: 1 / 1;
+  max-height: 100%;
   margin: 0 auto;
-  flex-shrink: 0;
 }
 
 .digital-human-container {
@@ -241,8 +240,10 @@ body.care-mode .session-item {
    响应式（窄屏）：方框以高度为准缩放
    ============================================================ */
 @media (max-width: 1024px) {
-  /* 窄屏/堆叠布局时给方框一个固定比例，避免高度塌陷 */
+  /* 窄屏/堆叠布局：正方形，按视口高度限制，避免高度塌陷或过大 */
   .digital-human-frame {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1 / 1;
+    max-height: none;
+    max-width: min(100%, 60vh);
   }
 }
