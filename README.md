@@ -1,4 +1,4 @@
-# Digital-Human-Companion-System
+# 智伴暖阳-基于生成式AI的老年情感陪伴数字人系统
 
 
 ---
