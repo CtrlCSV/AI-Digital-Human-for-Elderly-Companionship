@@ -780,6 +780,22 @@ async def websocket_chat(websocket: WebSocket):
         print("连接结束")
 
 
+@app.get("/{asset_name}")
+async def get_legacy_public_asset(asset_name: str):
+    """Serve root-relative assets used by the 2a7da21 frontend."""
+    allowed_exts = {".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".mp4", ".webp", ".ico"}
+    safe_name = os.path.basename(asset_name)
+    if safe_name != asset_name:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    ext = os.path.splitext(safe_name)[1].lower()
+    if ext not in allowed_exts:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    path = os.path.join(_PUBLIC_DIR, safe_name)
+    if not os.path.isfile(path):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    return FileResponse(path)
+
+
 if __name__ == "__main__":
     import uvicorn
     _host = os.environ.get("SERVER_HOST", "0.0.0.0")
