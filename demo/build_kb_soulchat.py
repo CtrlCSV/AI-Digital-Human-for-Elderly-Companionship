@@ -29,10 +29,13 @@ COLLECTION_NAME = "soulchat_knowledge"
 
 
 def collect_first_pairs() -> list[dict]:
-    """从所有 parquet 收集每段对话的首轮 user→assistant 配对。"""
+    """从所有 parquet 收集每段对话的首轮 user->assistant 配对。"""
+    parquet_paths = sorted(glob.glob(os.path.join(_DATA_DIR, "*.parquet")))
+    if not parquet_paths:
+        raise RuntimeError(f"未找到 SoulChat parquet 文件: {_DATA_DIR}/*.parquet，请先运行 python download_soulchat.py")
     seen_user = set()
     pairs = []
-    for path in sorted(glob.glob(os.path.join(_DATA_DIR, "*.parquet"))):
+    for path in parquet_paths:
         df = pd.read_parquet(path, columns=["id", "topic", "messages"])
         for _, row in df.iterrows():
             msgs = row["messages"]
@@ -78,6 +81,8 @@ def main():
     print("正在读取 SoulChat 对话并提取首轮配对...")
     pairs = collect_first_pairs()
     print(f"有效首轮配对 {len(pairs)} 条，采样上限 {MAX_PAIRS}")
+    if not pairs:
+        raise RuntimeError("SoulChat 数据已下载，但没有提取到有效 user/assistant 配对，请检查 parquet 字段结构")
     pairs = even_sample(pairs, MAX_PAIRS)
     print(f"采样后 {len(pairs)} 条，开始向量化...")
 

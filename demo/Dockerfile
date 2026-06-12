@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # 情感陪护虚拟数字人系统 - Docker 镜像
 # ============================================================
 # 构建命令：
@@ -88,7 +88,7 @@ RUN pip install --no-cache-dir \
         torchvision==0.20.1+cu121 \
         --index-url https://mirror.sjtu.edu.cn/pytorch-wheels/cu121 \
     # ── 裁剪推理不需要的大包（在同一层内删除，不产生额外层）──
-    && SITE=/opt/conda/envs/faceformer_new/lib/python3.10/site-packages \
+    && SITE=/opt/conda/envs/digital-human/lib/python3.10/site-packages \
     # triton：PyTorch JIT 编译器，推理不需要（555MB）
     && rm -rf $SITE/triton $SITE/triton-*.dist-info \
     # cusparselt：稀疏矩阵库，推理不需要（203MB）
@@ -117,7 +117,7 @@ SentenceTransformer('BAAI/bge-small-zh-v1.5')"
 
 # ── 阶段4：拷贝模型文件（大文件，放代码之前利用缓存）────────
 # SoulX-FlashHead 模型通过 volume 挂载（见 docker-compose.yml），不打包进镜像
-COPY models/whisper-small-zh/  /app/models/whisper-small-zh/
+COPY models/                  /app/models/
 COPY vector_db/                /app/vector_db/
 
 # ── 阶段5：拷贝业务代码和静态资源 ──────────────────────────
@@ -128,3 +128,4 @@ COPY public/ /app/public/
 
 EXPOSE 8000
 CMD ["python", "server.py"]
+

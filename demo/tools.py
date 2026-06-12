@@ -328,23 +328,30 @@ async def get_weather(city: Optional[str] = None) -> Dict[str, Any]:
 
 def _parse_weather_text(text: str, fallback_city: str) -> Dict[str, Any]:
     """先按 JSON 解，失败则正则抽关键字段。"""
+    def pick(d: Dict[str, Any], *keys: str):
+        for key in keys:
+            value = d.get(key)
+            if value is not None and value != "":
+                return value
+        return None
+
     try:
         d = json.loads(text)
         if isinstance(d, dict):
-            temp = d.get("temp") or d.get("temperature") or d.get("气温")
+            temp = pick(d, "temp", "temperature", "气温")
             if isinstance(temp, (int, float)):
                 temp = round(float(temp), 1)
-            wind_speed = d.get("wind_speed") or d.get("windSpeed")
+            wind_speed = pick(d, "wind_speed", "windSpeed")
             return {
                 "ok": True,
-                "city":       d.get("city") or d.get("location") or d.get("地点") or fallback_city,
+                "city":       pick(d, "city", "location", "地点") or fallback_city,
                 "temp":       temp,
-                "feels_like": d.get("feels_like") or d.get("feelsLike") or d.get("体感"),
-                "text":       d.get("text") or d.get("weather") or d.get("description") or d.get("天气") or d.get("condition"),
-                "wind_dir":   d.get("wind_dir") or d.get("windDir") or d.get("风向"),
-                "wind_scale": d.get("wind_scale") or d.get("windScale") or d.get("风力"),
+                "feels_like": pick(d, "feels_like", "feelsLike", "体感"),
+                "text":       pick(d, "text", "weather", "description", "天气", "condition"),
+                "wind_dir":   pick(d, "wind_dir", "windDir", "风向"),
+                "wind_scale": pick(d, "wind_scale", "windScale", "风力"),
                 "wind_speed": wind_speed,
-                "humidity":   d.get("humidity") or d.get("湿度"),
+                "humidity":   pick(d, "humidity", "湿度"),
                 "raw_text":   text,
             }
     except (json.JSONDecodeError, TypeError):

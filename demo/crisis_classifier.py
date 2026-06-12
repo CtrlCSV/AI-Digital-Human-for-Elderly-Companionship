@@ -1,15 +1,15 @@
-"""
+﻿"""
 本地 TF-IDF 危机分类器（SOS-1K 训练）。
 
-首次使用前运行 train_crisis_classifier.py 生成模型文件：
-  python train_crisis_classifier.py
+首次使用前运行 init_project.py 会自动检查并生成模型文件：
+  python init_project.py
 
 推理速度 <5ms，作为 LLM 精判前的快速初筛层：
   - 置信度 ≥ 0.75 的 high 预测：直接接受，跳过 LLM API 调用
   - 置信度 ≥ 0.75 的 none 预测（soft 信号）：直接排除，避免 LLM 误报
   - 其余情况：返回 available=True 并附上 hint，LLM 继续精判
 
-模型文件不存在时静默返回 available=False，系统回退到纯 LLM 流程。
+模型文件不存在时返回 available=False；正常部署应先运行 init_project.py 生成该必需模型。
 """
 
 import logging
@@ -30,7 +30,7 @@ def _try_load() -> bool:
         return _pipeline is not None
     _load_attempted = True
     if not os.path.exists(_MODEL_PATH):
-        logger.info("[CrisisClassifier] 模型文件不存在，跳过本地分类 (运行 train_crisis_classifier.py 可启用)")
+        logger.info("[CrisisClassifier] 模型文件不存在，请先运行 init_project.py 生成必需分类器")
         return False
     try:
         with open(_MODEL_PATH, "rb") as f:
@@ -70,3 +70,4 @@ def predict(text: str) -> dict:
     except Exception as e:
         logger.warning(f"[CrisisClassifier] 预测失败: {e}")
         return {"level": "none", "score": 0.0, "probas": {}, "available": False}
+

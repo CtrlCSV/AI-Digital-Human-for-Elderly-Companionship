@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // script.js v10
 // ============================================================
 
@@ -99,6 +99,7 @@ const state = {
   avatar: null, sessionId: null, sessions: [], userName: '',
   userId: '',
   ws: null, wsConnected: false, reconnects: 0,
+  wsManualClose: false, reconnectTimer: null,
   recording: false, recognition: null,
   responseId: null, botChunks: [],
   currentChunkEl: null,
@@ -1966,6 +1967,10 @@ const msgHandlers = {
   },
   error(d) { showToast(d.message || '服务器处理失败', 'error'); },
   dialect_changed(d) { state.dialect = d.dialect; },
+  pong() {},
+  interrupt_classified(d) {
+    state.lastInterruptIntent = d.intent || "";
+  },
   reminder_list(d) {
     state.reminders = Array.isArray(d.reminders) ? d.reminders.slice() : [];
     renderReminders();
@@ -2060,6 +2065,12 @@ function showCrisisBanner(hotlines, contactAction = null) {
 }
 
 function connectWebSocket() {
+  if (!state.avatar) return;
+  state.wsManualClose = false;
+  if (state.reconnectTimer) {
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   state.ws = new WebSocket(`${protocol}//${location.host}/ws/chat`);
 
@@ -2074,14 +2085,21 @@ function connectWebSocket() {
   state.ws.onmessage = (e) => {
     try { handleServerMessage(JSON.parse(e.data)); } catch (_) { showToast('服务器消息解析失败', 'warning'); }
   };
-  state.ws.onerror = () => { state.wsConnected = false; setStatus(STATUS.offlineD); };
+  state.ws.onerror = () => {
+    state.wsConnected = false;
+    if (!state.wsManualClose && state.avatar) setStatus(STATUS.offlineD);
+  };
   state.ws.onclose = () => {
     state.wsConnected = false;
+    if (state.wsManualClose || !state.avatar) {
+      state.ws = null;
+      return;
+    }
     setStatus(STATUS.offline);
     if (state.reconnects < MAX_RECONNECT) {
       state.reconnects++;
       setStatus(STATUS.reconnect);
-      setTimeout(connectWebSocket, Math.min(1000 * Math.pow(2, state.reconnects), 10000));
+      state.reconnectTimer = setTimeout(connectWebSocket, Math.min(1000 * Math.pow(2, state.reconnects), 10000));
     } else {
       showToast('无法连接到服务器，请刷新页面重试', 'error');
     }
@@ -2830,6 +2848,11 @@ async function selectAvatar(id) {
 
 function goBack() {
   stopCompanionTimer();
+  state.wsManualClose = true;
+  if (state.reconnectTimer) {
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
   state.reconnects = MAX_RECONNECT;
   if (state.ws) state.ws.close();
   VideoPlayer.reset();
@@ -2930,3 +2953,4 @@ window.showUserModal = showUserModal;
 window.hideUserModal = hideUserModal;
 window.confirmNewUser = confirmNewUser;
 window.selectUser = selectUser;
+

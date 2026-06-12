@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import base64
 import io
 import json
@@ -14,7 +14,8 @@ from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_HERE = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_HERE, ".env"))
 from starlette.websockets import WebSocketState
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
@@ -116,7 +117,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
 _PUBLIC_DIR = os.path.join(_HERE, "public")
 
 app.mount("/static", StaticFiles(directory=_PUBLIC_DIR), name="static")
@@ -219,12 +219,12 @@ async def send_stop_output(websocket: WebSocket, response_id: int, reason="barge
     }, lock)
 
 
-async def synthesize_pipeline(clean_text: str, role: str, avatar_id, dialect: str = "mandarin") -> tuple:
+async def synthesize_pipeline(clean_text: str, role: str, avatar_id, dialect: str = "mandarin", emotion: str = "neutral") -> tuple:
     """整句合成：TTS → FlashHead，返回 (audio_bytes, video_mp4)。"""
     audio_bytes = await tts_engine.generate_audio_bytes(clean_text, role=role, dialect=dialect)
     loop = asyncio.get_running_loop()
     video_mp4 = await loop.run_in_executor(
-        None, flashhead_adapter.audio_to_video_mp4, audio_bytes, avatar_id
+        None, flashhead_adapter.audio_to_video_mp4, audio_bytes, avatar_id, emotion
     )
     return audio_bytes, video_mp4
 
@@ -291,7 +291,7 @@ async def process_user_message(
             clean_text = sanitize_chunk(full_reply.strip())
             audio_bytes, video_mp4 = None, None
             try:
-                audio_bytes, video_mp4 = await synthesize_pipeline(clean_text, role, avatar_id, dialect)
+                audio_bytes, video_mp4 = await synthesize_pipeline(clean_text, role, avatar_id, dialect, emotion)
             except TTSGenerationError as e:
                 print(f"[TTS] 合成失败: {e}")
             except Exception as e:
@@ -303,6 +303,7 @@ async def process_user_message(
                     "responseId": response_state.response_id,
                     "seq": 0,
                     "text": clean_text,
+                    "emotion": emotion or "neutral",
                     "fullText": full_reply,
                     "isFinalChunk": True,
                 }
@@ -396,8 +397,9 @@ async def upload_avatar(
     ext = "png" if "png" in (file.content_type or "") else "jpg"
 
     if slot in (1, 2, 3):
-        role_names = {1: "girl", 2: "old", 3: "boy"}
-        fname = f"avatar_{role_names[slot]}.{ext}"
+        avatar_filenames = {1: "avatar-xiaoli", 2: "avatar-laowang", 3: "avatar-xiaoming"}
+        role_names = {1: "girl", 2: "elderly", 3: "boy"}
+        fname = f"{avatar_filenames[slot]}.{ext}"
         save_path = os.path.join(_PUBLIC_DIR, fname)
         flashhead_adapter.AVATAR_PORTRAITS[slot] = save_path
     else:
@@ -783,3 +785,6 @@ if __name__ == "__main__":
     _host = os.environ.get("SERVER_HOST", "0.0.0.0")
     _port = int(os.environ.get("SERVER_PORT", "8000"))
     uvicorn.run(app, host=_host, port=_port)
+
+
+

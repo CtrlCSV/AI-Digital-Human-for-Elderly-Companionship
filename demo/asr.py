@@ -1,71 +1,162 @@
+﻿import io
 import os
+import tempfile
+import wave
 
 import numpy as np
 import speech_recognition as sr
 import torch
 from dotenv import load_dotenv
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
-
-load_dotenv()
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_ASR_MODEL_PATH = os.environ.get(
-    "ASR_MODEL_PATH",
-    os.path.join(_HERE, "models", "whisper-small-model"),
-)
+load_dotenv(os.path.join(_HERE, ".env"))
+
+
+def _resolve_model_path(value: str | None) -> str:
+    default_path = os.path.join(_HERE, "models", "SenseVoiceSmall")
+    raw = (value or "").strip()
+    candidates = []
+    if raw:
+        expanded = os.path.expandvars(os.path.expanduser(raw))
+        if os.path.isabs(expanded):
+            candidates.append(expanded)
+        else:
+            candidates.extend([
+                os.path.join(_HERE, expanded),
+                os.path.join(os.path.dirname(_HERE), expanded),
+            ])
+    candidates.append(default_path)
+    for candidate in candidates:
+        candidate = os.path.abspath(candidate)
+        if os.path.isdir(candidate):
+            return candidate
+    return os.path.abspath(default_path)
+
+
+ASR_MODEL_PATH = _resolve_model_path(os.environ.get("ASR_MODEL_PATH"))
+ASR_MODEL_ID = os.environ.get("ASR_MODEL_ID", "FunAudioLLM/SenseVoiceSmall").strip()
+ASR_LANGUAGE = os.environ.get("ASR_LANGUAGE", "auto").strip() or "auto"
+ASR_DEVICE = os.environ.get("ASR_DEVICE", "auto").strip().lower()
+
+
+def _pick_device() -> str:
+    if ASR_DEVICE and ASR_DEVICE != "auto":
+        return ASR_DEVICE
+    return "cuda:0" if torch.cuda.is_available() else "cpu"
+
+
+def _decode_wav_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+    with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
+        channels = wf.getnchannels()
+        sample_width = wf.getsampwidth()
+        sample_rate = wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+
+    if sample_width == 2:
+        audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+    elif sample_width == 4:
+        audio = np.frombuffer(frames, dtype=np.int32).astype(np.float32) / 2147483648.0
+    elif sample_width == 1:
+        audio = (np.frombuffer(frames, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
+    else:
+        raise ValueError(f"Unsupported WAV sample width: {sample_width}")
+
+    if channels > 1:
+        audio = audio.reshape(-1, channels).mean(axis=1)
+    return audio.astype(np.float32), sample_rate
+
+
+def _audio_bytes_to_wav_file(audio_bytes: bytes) -> str:
+    if audio_bytes[:4] == b"RIFF":
+        audio, sample_rate = _decode_wav_bytes(audio_bytes)
+    else:
+        audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+        sample_rate = 16000
+
+    fd, path = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    pcm = np.clip(audio, -1.0, 1.0)
+    pcm = (pcm * 32767.0).astype(np.int16)
+    with wave.open(path, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(pcm.tobytes())
+    return path
 
 
 class CustomASR:
-    def __init__(self, model_path: str = _ASR_MODEL_PATH):
-        print(f"正在加载 Whisper 中文模型: {model_path}")
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"[ASR] 使用设备: {self.device}")
-
-        self.processor = WhisperProcessor.from_pretrained(model_path)
-        self.model = WhisperForConditionalGeneration.from_pretrained(
-            model_path,
-            device_map="auto" if self.device == "cuda" else None,
-        )
-        if self.device == "cpu":
-            self.model = self.model.to("cpu")
-        self.model.eval()
+    def __init__(self, model_path: str = ASR_MODEL_PATH):
+        self.model_path = model_path
+        self.device = _pick_device()
         self.recognizer = sr.Recognizer()
+        self.model = None
+        self.postprocess = None
+
+        print(f"[ASR] SenseVoice model={ASR_MODEL_ID}, local={self.model_path}, device={self.device}, language={ASR_LANGUAGE}")
+        self._load_model()
+
+    def _load_model(self) -> None:
+        try:
+            from funasr import AutoModel
+            from funasr.utils.postprocess_utils import rich_transcription_postprocess
+        except ImportError as exc:
+            raise RuntimeError("SenseVoice ASR requires: pip install funasr modelscope huggingface_hub") from exc
+
+        required_files = [
+            "configuration.json",
+            "config.yaml",
+            "model.pt",
+            "chn_jpn_yue_eng_ko_spectok.bpe.model",
+            "am.mvn",
+        ]
+        local_ready = os.path.isdir(self.model_path) and all(
+            os.path.isfile(os.path.join(self.model_path, name)) for name in required_files
+        )
+        model_source = self.model_path if local_ready else ASR_MODEL_ID
+        print(f"[ASR] loading source={model_source}")
+        self.model = AutoModel(
+            model=model_source,
+            trust_remote_code=True,
+            device=self.device,
+            hub="hf",
+            disable_update=True,
+        )
+        self.postprocess = rich_transcription_postprocess
+
+    def _record_microphone(self) -> bytes:
+        with sr.Microphone() as source:
+            print("绯荤粺宸插氨缁紝璇疯璇?..")
+            self.recognizer.adjust_for_ambient_noise(source, duration=0.8)
+            audio = self.recognizer.listen(source)
+        return audio.get_wav_data(convert_rate=16000, convert_width=2)
 
     def speech_to_text(self, audio_bytes: bytes = None) -> str:
-        """支持字节流（WebSocket）和麦克风两种输入模式。"""
-        if audio_bytes is not None:
-            try:
-                print("正在本地识别（字节流模式）...")
-                audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-            except Exception as e:
-                return f"音频解析失败: {e}"
-        else:
-            with sr.Microphone() as source:
-                print("系统已就绪，请说话...")
-                self.recognizer.adjust_for_ambient_noise(source, duration=0.8)
-                audio = self.recognizer.listen(source)
-            wav_data = audio.get_raw_data(convert_rate=16000, convert_width=2)
-            audio_np = np.frombuffer(wav_data, dtype=np.int16).astype(np.float32) / 32768.0
+        if audio_bytes is None:
+            audio_bytes = self._record_microphone()
 
+        wav_path = _audio_bytes_to_wav_file(audio_bytes)
         try:
-            print("正在本地识别...")
-            input_features = self.processor(
-                audio_np,
-                sampling_rate=16000,
-                return_tensors="pt"
-            ).input_features.to(self.device)
-
-            with torch.no_grad():
-                predicted_ids = self.model.generate(
-                    input_features,
-                    language="chinese",
-                    max_new_tokens=128,
-                )
-
-            return self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
-
+            result = self.model.generate(
+                input=wav_path,
+                cache={},
+                language=ASR_LANGUAGE,
+                use_itn=True,
+                batch_size_s=60,
+                merge_vad=False,
+                merge_length_s=15,
+            )
+            text = result[0].get("text", "") if result else ""
+            if self.postprocess:
+                text = self.postprocess(text)
+            return text.strip()
         except Exception as e:
-            return f"识别过程出错: {e}"
+            return f"璇嗗埆杩囩▼鍑洪敊: {e}"
+        finally:
+            try:
+                os.remove(wav_path)
+            except OSError:
+                pass
 
 
 asr_engine = CustomASR()
@@ -73,4 +164,7 @@ asr_engine = CustomASR()
 if __name__ == "__main__":
     while True:
         result = asr_engine.speech_to_text()
-        print(f"识别结果: {result}")
+        print(f"璇嗗埆缁撴灉: {result}")
+
+
+

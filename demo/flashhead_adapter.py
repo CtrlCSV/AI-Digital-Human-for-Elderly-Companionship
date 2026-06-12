@@ -1,13 +1,17 @@
-"""
-SoulX-FlashHead 视频生成适配器。
+﻿"""
+SoulX-FlashHead video generation adapter.
 
-接收 TTS 生成的 MP3 音频字节 + 角色 ID，返回带音频轨道的 MP4 视频字节。
+Receives TTS audio bytes and avatar id, then returns MP4 video bytes when FlashHead is available.
+Paths can be absolute or relative to demo/ or the project root. If an old absolute path in .env
+no longer exists, the adapter falls back to the repository layout used by init_project.py:
+  ../SoulX-FlashHead/
+  ../SoulX-FlashHead/models/SoulX-FlashHead-1_3B/
+  ../SoulX-FlashHead/models/wav2vec2-base-960h/
 
-在 .env 中配置：
-  FLASHHEAD_REPO_DIR=../SoulX-FlashHead
-  FLASHHEAD_CKPT_DIR=../SoulX-FlashHead/models/SoulX-FlashHead-1_3B
-  FLASHHEAD_WAV2VEC_DIR=../SoulX-FlashHead/models/wav2vec2-base-960h
-  FLASHHEAD_MODEL_TYPE=lite
+Optional expression portraits can be added beside the base portraits, for example:
+  avatars/portraits/girl_happy.png
+  avatars/portraits/girl_sad.png
+  avatars/portraits/old_neutral.png
 """
 
 import io
@@ -16,76 +20,123 @@ import sys
 import tempfile
 import threading
 import wave
-import numpy as np
 from collections import deque
+from pathlib import Path
+
+import numpy as np
 from dotenv import load_dotenv
 
-load_dotenv()
+DEMO_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = DEMO_DIR.parent
+load_dotenv(DEMO_DIR / ".env")
 
-# chdir 全局影响进程，FlashHead 调用必须串行
+# chdir affects the whole process, so FlashHead calls must be serialized.
 _flash_lock = threading.Lock()
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
 
-FLASHHEAD_REPO_DIR = os.environ.get(
+def _resolve_config_path(env_name: str, *defaults: Path) -> str:
+    """Resolve env paths portably; stale absolute .env values fall back to repo defaults."""
+    raw = (os.environ.get(env_name) or "").strip()
+    candidates: list[Path] = []
+    if raw:
+        raw_path = Path(os.path.expandvars(os.path.expanduser(raw)))
+        if raw_path.is_absolute():
+            candidates.append(raw_path)
+        else:
+            if raw_path.parts and raw_path.parts[0] == "..":
+                candidates.append(DEMO_DIR / raw_path)
+            else:
+                candidates.extend([DEMO_DIR / raw_path, PROJECT_ROOT / raw_path])
+    candidates.extend(defaults)
+
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate.exists():
+            return str(candidate)
+
+    fallback = (defaults[0] if defaults else (DEMO_DIR / raw)).resolve()
+    return str(fallback)
+
+
+FLASHHEAD_REPO_DIR = _resolve_config_path(
     "FLASHHEAD_REPO_DIR",
-    os.path.join(_HERE, "..", "..", "SoulX-FlashHead"),
+    PROJECT_ROOT / "SoulX-FlashHead",
+    PROJECT_ROOT / "third_party" / "SoulX-FlashHead",
 )
 if os.path.isdir(FLASHHEAD_REPO_DIR) and FLASHHEAD_REPO_DIR not in sys.path:
     sys.path.insert(0, os.path.abspath(FLASHHEAD_REPO_DIR))
 
-FLASHHEAD_CKPT_DIR = os.environ.get(
+FLASHHEAD_CKPT_DIR = _resolve_config_path(
     "FLASHHEAD_CKPT_DIR",
-    os.path.join(FLASHHEAD_REPO_DIR, "models", "SoulX-FlashHead-1_3B"),
+    Path(FLASHHEAD_REPO_DIR) / "models" / "SoulX-FlashHead-1_3B",
 )
-FLASHHEAD_WAV2VEC_DIR = os.environ.get(
+FLASHHEAD_WAV2VEC_DIR = _resolve_config_path(
     "FLASHHEAD_WAV2VEC_DIR",
-    os.path.join(FLASHHEAD_REPO_DIR, "models", "wav2vec2-base-960h"),
+    Path(FLASHHEAD_REPO_DIR) / "models" / "wav2vec2-base-960h",
 )
 FLASHHEAD_MODEL_TYPE = os.environ.get("FLASHHEAD_MODEL_TYPE", "lite")
 
 # avatar_id 1=girl, 2=elderly, 3=boy
 AVATAR_PORTRAITS = {
-    1: os.path.join(_HERE, "..", "avatars", "portraits", "girl.png"),
-    2: os.path.join(_HERE, "..", "avatars", "portraits", "old.png"),
-    3: os.path.join(_HERE, "..", "avatars", "portraits", "boy.png"),
+    1: str(PROJECT_ROOT / "avatars" / "portraits" / "girl.png"),
+    2: str(PROJECT_ROOT / "avatars" / "portraits" / "old.png"),
+    3: str(PROJECT_ROOT / "avatars" / "portraits" / "boy.png"),
+}
+
+_EMOTION_ALIASES = {
+    "happy": "happy",
+    "sad": "sad",
+    "angry": "angry",
+    "fear": "fear",
+    "fearful": "fear",
+    "surprise": "surprise",
+    "surprised": "surprise",
+    "disgust": "disgust",
+    "neutral": "neutral",
+    "开心": "happy",
+    "高兴": "happy",
+    "快乐": "happy",
+    "难过": "sad",
+    "悲伤": "sad",
+    "生气": "angry",
+    "愤怒": "angry",
+    "害怕": "fear",
+    "惊讶": "surprise",
+    "厌恶": "disgust",
+    "中性": "neutral",
 }
 
 _pipeline = None
 _infer_params = None
-_current_avatar_id = None
-_available = None  # None=未检测, True/False=检测结果
+_available = None
+_current_avatar_id = None_available = None  # None=not checked, True/False=check result
 
 
 def _check_available() -> bool:
-    """检查 SoulX-FlashHead 是否可用（仓库存在 + 权重存在）。"""
+    """Check whether SoulX-FlashHead is available."""
     global _available
     if _available is not None:
         return _available
     if not os.path.isdir(FLASHHEAD_REPO_DIR):
-        print(f"[FlashHead] 仓库目录不存在: {FLASHHEAD_REPO_DIR}，视频生成不可用，降级为纯音频。")
+        print(f"[FlashHead] Repository directory does not exist: {FLASHHEAD_REPO_DIR}; falling back to audio only.")
         _available = False
         return False
     try:
-        import importlib
+        import importlib.util
         spec = importlib.util.find_spec("flash_head")
         if spec is None:
-            print("[FlashHead] 无法找到 flash_head 模块，视频生成不可用，降级为纯音频。")
+            print("[FlashHead] Cannot find flash_head module; falling back to audio only.")
             _available = False
             return False
-    except Exception:
+    except Exception as e:
+        print(f"[FlashHead] Module check failed: {e}; falling back to audio only.")
         _available = False
         return False
     _available = True
     return True
 
-
 def _load_pipeline():
-    """懒加载 FlashHead pipeline（耗时操作，只执行一次）。
-
-    注意：flash_head 模块在 import 时使用相对路径加载 yaml 配置，
-    所以必须先 chdir 到 SoulX-FlashHead 根目录再 import。
-    """
+    """Lazy-load the FlashHead pipeline once."""
     global _pipeline, _infer_params, _available
     if _pipeline is not None:
         return True
@@ -104,7 +155,7 @@ def _load_pipeline():
                 del _sys.modules[mod_name]
 
         from flash_head.inference import get_pipeline, get_infer_params
-        print(f"[FlashHead] 正在加载 pipeline: ckpt={FLASHHEAD_CKPT_DIR}, wav2vec={FLASHHEAD_WAV2VEC_DIR}, type={FLASHHEAD_MODEL_TYPE}")
+        print(f"[FlashHead] Loading pipeline: ckpt={FLASHHEAD_CKPT_DIR}, wav2vec={FLASHHEAD_WAV2VEC_DIR}, type={FLASHHEAD_MODEL_TYPE}")
         _pipeline = get_pipeline(
             world_size=1,
             ckpt_dir=FLASHHEAD_CKPT_DIR,
@@ -112,10 +163,10 @@ def _load_pipeline():
             wav2vec_dir=FLASHHEAD_WAV2VEC_DIR,
         )
         _infer_params = get_infer_params()
-        print("[FlashHead] Pipeline 加载成功。")
+        print("[FlashHead] Pipeline loaded.")
         return True
     except Exception as e:
-        print(f"[FlashHead] Pipeline 加载失败: {e}，降级为纯音频。")
+        print(f"[FlashHead] Pipeline load failed: {e}; falling back to audio only.")
         _pipeline = None
         _infer_params = None
         _available = False
@@ -124,16 +175,34 @@ def _load_pipeline():
         os.chdir(original_cwd)
 
 
-def _setup_avatar(avatar_id: int):
-    """为指定角色设置 condition image（每次切换角色才需重新调用）。"""
+def _normalize_emotion(emotion: str | None) -> str:
+    key = (emotion or "neutral").strip().lower()
+    return _EMOTION_ALIASES.get(key, "neutral")
+
+
+def _portrait_for_emotion(avatar_id: int, emotion: str | None) -> tuple[str, str]:
+    base = Path(AVATAR_PORTRAITS.get(avatar_id, AVATAR_PORTRAITS[1])).resolve()
+    emotion_key = _normalize_emotion(emotion)
+    if emotion_key != "neutral":
+        candidate = base.with_name(f"{base.stem}_{emotion_key}{base.suffix}")
+        if candidate.is_file():
+            return str(candidate), emotion_key
+    neutral_candidate = base.with_name(f"{base.stem}_neutral{base.suffix}")
+    if neutral_candidate.is_file():
+        return str(neutral_candidate), "neutral"
+    return str(base), "neutral"
+def _setup_avatar(avatar_id: int, emotion: str | None = None):
+    """Set the condition image for the selected avatar and emotion portrait."""
     global _current_avatar_id
-    if _current_avatar_id == avatar_id:
+    portrait_path, emotion_key = _portrait_for_emotion(avatar_id, emotion)
+    cache_key = (avatar_id, emotion_key, portrait_path)
+    if _current_avatar_id == cache_key:
         return
-    portrait_path = AVATAR_PORTRAITS.get(avatar_id, AVATAR_PORTRAITS[1])
-    portrait_path = os.path.abspath(portrait_path)
+
     if not os.path.isfile(portrait_path):
-        print(f"[FlashHead] 肖像图不存在: {portrait_path}，使用角色 1 的默认图像。")
-        portrait_path = os.path.abspath(AVATAR_PORTRAITS[1])
+        print(f"[FlashHead] Portrait does not exist: {portrait_path}; using avatar 1 default.")
+        portrait_path, emotion_key = _portrait_for_emotion(1, "neutral")
+        cache_key = (1, emotion_key, portrait_path)
     try:
         from flash_head.inference import get_base_data
         get_base_data(
@@ -142,37 +211,37 @@ def _setup_avatar(avatar_id: int):
             base_seed=9999,
             use_face_crop=False,
         )
-        _current_avatar_id = avatar_id
-        print(f"[FlashHead] 角色 {avatar_id} 肖像已设置: {portrait_path}")
+        _current_avatar_id = cache_key
+        print(f"[FlashHead] Avatar {avatar_id} portrait set: {portrait_path} (emotion={emotion_key})")
     except Exception as e:
-        print(f"[FlashHead] 设置角色肖像失败: {e}")
+        print(f"[FlashHead] Failed to set avatar portrait: {e}")
 
 
 def _mp3_bytes_to_wav_file(audio_bytes: bytes, tmp_wav_path: str):
-    """将 Azure TTS 返回的 MP3 字节转存为临时 WAV 文件（供 librosa 读取）。"""
+    """Convert TTS audio bytes to a temporary WAV file for librosa/FlashHead."""
     import soundfile as sf
     import librosa
 
     audio_io = io.BytesIO(audio_bytes)
-    # 尝试直接用 soundfile 读（WAV/FLAC/OGG 等）
+    # Try soundfile first for WAV/FLAC/OGG and similar formats.
     try:
         data, sr = sf.read(audio_io)
     except Exception:
-        # MP3 回退：用 librosa（依赖 audioread/ffmpeg）
+        # Fall back to librosa for MP3.
         audio_io.seek(0)
         data, sr = librosa.load(audio_io, sr=None, mono=True)
 
-    # 统一转为 float32 mono
+    # Normalize to float32 mono.
     if data.ndim > 1:
         data = data.mean(axis=1)
     data = data.astype(np.float32)
 
-    # 写 16kHz WAV（SoulX-FlashHead 所需采样率）
+    # Write the sample rate required by FlashHead.
     target_sr = _infer_params.get("sample_rate", 16000) if _infer_params else 16000
     if sr != target_sr:
         data = librosa.resample(data, orig_sr=sr, target_sr=target_sr)
 
-    # 保存为 16-bit PCM WAV
+    # Save as 16-bit PCM WAV.
     pcm = (np.clip(data, -1.0, 1.0) * 32767).astype(np.int16)
     with wave.open(tmp_wav_path, "wb") as wf:
         wf.setnchannels(1)
@@ -182,7 +251,7 @@ def _mp3_bytes_to_wav_file(audio_bytes: bytes, tmp_wav_path: str):
 
 
 def _run_inference(audio_array: np.ndarray) -> list:
-    """对一段 float32 音频数组运行 FlashHead 推理，返回视频帧张量列表。"""
+    """Run FlashHead inference on a float32 audio array and return frame tensors."""
     import torch
     from flash_head.inference import get_audio_embedding, run_pipeline
 
@@ -219,7 +288,7 @@ def _run_inference(audio_array: np.ndarray) -> list:
         audio_arr = np.array(audio_dq)
         emb = get_audio_embedding(_pipeline, audio_arr, audio_start_idx, audio_end_idx)
         video = run_pipeline(_pipeline, emb)
-        video = video[motion_frames_num:]  # 去除动作重叠帧
+        video = video[motion_frames_num:]  # Drop repeated motion frames.
         generated.append(video.cpu())
 
     return generated
@@ -275,7 +344,7 @@ def _frames_to_mp4_bytes(frames_list: list, wav_path: str) -> bytes:
 
 
 def _frames_to_mp4_bytes_no_audio(frames_list: list) -> bytes:
-    """将帧列表保存为无声 MP4。"""
+    """Convert TTS audio bytes to a temporary WAV file for librosa/FlashHead."""
     import imageio
 
     tgt_fps = _infer_params.get("tgt_fps", 25) if _infer_params else 25
@@ -304,16 +373,13 @@ def _frames_to_mp4_bytes_no_audio(frames_list: list) -> bytes:
 
 
 def generate_idle_video_from_portrait(portrait_path: str, duration_sec: float = 6.0) -> bytes | None:
-    """从肖像图生成单段待机视频（无声 MP4）。"""
+    """Generate a single silent idle video from a portrait image."""
     results = generate_idle_videos_from_portrait(portrait_path, count=1, duration_sec=duration_sec)
     return results[0] if results else None
 
 
 def generate_idle_videos_from_portrait(portrait_path: str, count: int = 3, duration_sec: float = 6.0) -> list:
-    """
-    从肖像图生成多段待机视频（各段使用不同随机种子，产生自然变化）。
-    在单次锁占用内连续推理，避免反复初始化开销。
-    """
+    """Generate multiple silent idle videos from a portrait image."""
     global _current_avatar_id
     with _flash_lock:
         original_cwd = os.getcwd()
@@ -325,7 +391,7 @@ def generate_idle_videos_from_portrait(portrait_path: str, count: int = 3, durat
 
             portrait_abs = os.path.abspath(portrait_path)
             if not os.path.isfile(portrait_abs):
-                print(f"[FlashHead-Idle] 肖像图不存在: {portrait_abs}")
+                print(f"[FlashHead-Idle] Portrait does not exist: {portrait_abs}")
                 return []
 
             _current_avatar_id = None
@@ -347,20 +413,19 @@ def generate_idle_videos_from_portrait(portrait_path: str, count: int = 3, durat
                 frames = _run_inference(audio_array)
                 if frames:
                     results.append(_frames_to_mp4_bytes_no_audio(frames))
-                    print(f"[FlashHead-Idle] 第 {i+1}/{count} 段生成完成")
+                    print(f"[FlashHead-Idle] Generated segment {i+1}/{count}")
 
             return results
 
         except Exception as e:
-            print(f"[FlashHead-Idle] 多段待机视频生成失败: {e}")
+            print(f"[FlashHead-Idle] Failed to generate idle videos: {e}")
             return []
         finally:
             _current_avatar_id = None
             os.chdir(original_cwd)
 
-
-def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int) -> bytes | None:
-    """将 TTS 音频（MP3 字节）转换为说话人视频（MP4），失败时返回 None。"""
+def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int, emotion: str | None = None) -> bytes | None:
+    """Convert TTS audio bytes to a talking-head MP4. Return None on failure."""
     if not audio_bytes:
         return None
 
@@ -382,7 +447,7 @@ def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int) -> bytes | None:
                 sample_rate = _infer_params.get("sample_rate", 16000) if _infer_params else 16000
                 audio_array, _ = librosa.load(tmp_wav.name, sr=sample_rate, mono=True)
 
-                _setup_avatar(avatar_id)
+                _setup_avatar(avatar_id, emotion)
                 frames = _run_inference(audio_array)
 
                 if not frames:
@@ -391,7 +456,7 @@ def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int) -> bytes | None:
                 return _frames_to_mp4_bytes(frames, tmp_wav.name)
 
             except Exception as e:
-                print(f"[FlashHead] 视频生成失败（降级纯音频）: {e}")
+                print(f"[FlashHead] Video generation failed; falling back to audio only: {e}")
                 return None
             finally:
                 try:
@@ -401,12 +466,16 @@ def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int) -> bytes | None:
         finally:
             os.chdir(original_cwd)
 
-
 def reset_avatar_cache():
-    """清除当前已加载的肖像缓存，强制下次推理重新加载肖像（头像更新后调用）。"""
+    """Clear the currently loaded avatar portrait cache."""
     global _current_avatar_id
     _current_avatar_id = None
 
 
 def is_available() -> bool:
     return _check_available()
+
+
+
+
+

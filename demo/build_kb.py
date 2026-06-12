@@ -1,16 +1,7 @@
 import os
 import json
-import os
-
 import chromadb
-from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-
-load_dotenv()
-
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_VECTOR_DB_PATH = os.environ.get("VECTOR_DB_PATH", os.path.join(_HERE, "vector_db"))
-_EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
 
 # ==========================================
 # 1. 初始化核心组件
@@ -18,10 +9,11 @@ _EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
 print("正在加载 Embedding 模型...")
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _BGE_LOCAL = os.path.join(_BASE_DIR, "models", "bge-small-zh-v1.5")
-embedder = SentenceTransformer(_BGE_LOCAL if os.path.isdir(_BGE_LOCAL) else _EMBED_MODEL)
+embedder = SentenceTransformer(_BGE_LOCAL if os.path.isdir(_BGE_LOCAL) else 'BAAI/bge-small-zh-v1.5')
 
 print("正在初始化 ChromaDB 本地持久化存储...")
-client = chromadb.PersistentClient(path=_VECTOR_DB_PATH)
+# PersistentClient 会在当前目录下生成一个 vector_db 文件夹，把数据写进硬盘
+client = chromadb.PersistentClient(path="./vector_db")
 
 # 获取或创建一个集合 (类似关系型数据库中的 Table)
 # 针对欧氏距离 (L2) 进行了默认优化
@@ -86,17 +78,14 @@ def ingest_data():
 
     print("正在将向量写入 ChromaDB...")
 
-    # 分批写入，解决 ChromaDB 批次大小限制
-    batch_size = 40000  # 安全值，低于上限 41666
+    batch_size = client.get_max_batch_size()
     total = len(documents)
 
     for i in range(0, total, batch_size):
-        # 截取当前批次数据
         batch_embeddings = embeddings[i:i+batch_size]
         batch_documents = documents[i:i+batch_size]
         batch_ids = ids[i:i+batch_size]
-        
-        # 写入数据库
+
         collection.add(
             embeddings=batch_embeddings,
             documents=batch_documents,
@@ -104,7 +93,7 @@ def ingest_data():
         )
         print(f"已写入 {min(i+batch_size, total)} / {total} 条数据")
 
-    print("真实数据入库完成")
+    print("🎉 真实数据入库完成！")
 
 
 # ==========================================

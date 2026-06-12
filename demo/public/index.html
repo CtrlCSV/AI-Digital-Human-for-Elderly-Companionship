@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -1168,26 +1168,33 @@
         const windEl = document.getElementById('weatherWind');
         const iconEl = document.getElementById('weatherIcon');
         const dayEl = document.getElementById('weatherDay');
-        if (cityEl && d.city) cityEl.textContent = d.city;
-        if (tempEl && d.temp != null) tempEl.textContent = d.temp;
-        if (textEl && d.text) textEl.textContent = d.text;
-        if (windEl && d.windDir) windEl.textContent = `${d.windDir} ${d.windScale || ''}级`;
-        if (dayEl && d.date) dayEl.textContent = d.date;
-        if (iconEl && d.text) {
-          const t = d.text;
-          const name = /雷/.test(t)
-            ? 'cloud-lightning'
-            : /雪/.test(t)
-              ? 'cloud-snow'
-              : /雨/.test(t)
-                ? 'cloud-rain'
-                : /雾|霾/.test(t)
-                  ? 'cloud-fog'
-                  : /阴/.test(t)
-                    ? 'cloud'
-                    : /云/.test(t)
-                      ? 'cloud-sun'
-                      : 'sun';
+        const weather = d.data || d;
+        const weatherCity = weather.city || weather.location || city;
+        const weatherTemp = weather.temp ?? weather.temperature;
+        const weatherText = weather.text || weather.weather || weather.description;
+        const windDir = weather.wind_dir || weather.windDir;
+        const windScale = weather.wind_scale || weather.windScale;
+        const windSpeed = weather.wind_speed || weather.windSpeed;
+
+        if (cityEl) cityEl.textContent = weatherCity || '本地';
+        if (weather.ok === false) {
+          if (textEl) textEl.textContent = weather.error || '天气暂不可用';
+          if (windEl) windEl.textContent = '--';
+          return;
+        }
+        if (tempEl && weatherTemp != null) tempEl.textContent = weatherTemp;
+        if (textEl && weatherText) textEl.textContent = weatherText;
+        if (windEl) {
+          if (windDir || windScale) {
+            windEl.textContent = `${windDir || ''}${windDir && windScale ? ' ' : ''}${windScale ? `${windScale}级` : ''}`;
+          } else if (windSpeed != null) {
+            windEl.textContent = `${windSpeed} m/s`;
+          }
+        }
+        if (dayEl && weather.date) dayEl.textContent = weather.date;
+        if (iconEl && weatherText) {
+          const t = weatherText;
+          const name = /雷/.test(t) ? 'cloud-lightning' : /雪/.test(t) ? 'cloud-snow' : /雨/.test(t) ? 'cloud-rain' : /雾|霾/.test(t) ? 'cloud-fog' : /阴/.test(t) ? 'cloud' : /云/.test(t) ? 'cloud-sun' : 'sun';
           iconEl.innerHTML = `<i data-lucide="${name}" style="width:64px;height:64px;stroke-width:1.2"></i>`;
           if (window.lucide) lucide.createIcons();
         }

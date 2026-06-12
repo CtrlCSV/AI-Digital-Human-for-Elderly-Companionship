@@ -1,4 +1,4 @@
-# 智伴暖阳-基于生成式AI的老年情感陪伴数字人系统
+﻿# AI-Digital-Human-for-Elderly-Companionship
 
 
 ---
@@ -12,7 +12,7 @@
 | 模块 | 技术 |
 |------|------|
 | 对话 | LLM（OpenAI 兼容接口）+ LangChain + ChromaDB 知识库 |
-| 语音识别 | Whisper（本地 LoRA 微调模型） |
+| 语音识别 | SenseVoiceSmall（开源方言 ASR） |
 | 语音合成 | Azure TTS |
 | 方言合成 | Azure 内置方言声音（普通话 / 粤语 / 台湾腔，无需参考音频） |
 | 数字人渲染 | SoulX-FlashHead（音频驱动说话人视频，Lite 模型 96FPS） |
@@ -43,17 +43,16 @@ git clone https://github.com/CtrlCSV/Digital-Human-Companion-System
 cd Digital-Human-Companion-System
 ```
 
-### 2. 克隆 SoulX-FlashHead
+### 2. 初始化项目
 
-与本项目**平级**克隆（路径已内置，无需额外配置）：
+进入 `demo/` 后运行统一初始化脚本。脚本会自动检查/准备 ASR、RAG、SoulChat、危机分类器以及 SoulX-FlashHead 仓库和权重。
 
 ```bash
-cd ..
-git clone https://github.com/Soul-AILab/SoulX-FlashHead SoulX-FlashHead
-cd Digital-Human-Companion-System
+cd demo
+python init_project.py
 ```
 
-### 3. 下载所有需要的模型权重（仓库内**不包含**这些大文件，需自行下载）
+### 3. 模型与数据说明（仓库内**不包含**这些大文件，需自行下载）
 
 > **重要**：本仓库 `.gitignore` 排除了所有模型权重、数据集、向量库等大文件，必须按下面步骤自行获取。
 
@@ -85,17 +84,12 @@ huggingface-cli download facebook/wav2vec2-base-960h \
 
 > **降级模式**：若 SoulX-FlashHead 未就绪，系统自动降级为纯音频模式（仅 TTS，无视频）。
 
-#### 3.2 Whisper 中文语音识别模型（约 500MB）
+#### 3.2 SenseVoice 方言语音识别模型
 
-```bash
-# Windows PowerShell
-$env:HF_ENDPOINT = "https://hf-mirror.com"
-# Linux / macOS
-# export HF_ENDPOINT=https://hf-mirror.com
+项目已改用 `FunAudioLLM/SenseVoiceSmall`。通常不需要手动下载，`python init_project.py` 会自动放到：
 
-cd demo
-huggingface-cli download Jingmiao/whisper-small-chinese_base \
-    --local-dir ./models/whisper-small-model
+```text
+demo/models/SenseVoiceSmall/
 ```
 
 #### 3.3 心理问答数据集（构建知识库用）
@@ -220,3 +214,4 @@ docker compose down        # 停止
 ```
 
 SoulX-FlashHead 模型目录通过 volume 挂载到容器，无需打包进镜像，按需修改 `demo/docker-compose.yml` 中的宿主机路径即可。
+
