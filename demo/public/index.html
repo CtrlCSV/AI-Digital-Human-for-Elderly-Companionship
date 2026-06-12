@@ -4,20 +4,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>温心陪伴 - 数字人聊天助手</title>
+  <title>智伴暖阳 - 数字人聊天助手</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=12">
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
             cream: { 50: '#FDF9F1', 100: '#FAF3E4', 200: '#F3E8CF', 300: '#E8D5A8' },
-            ink:   { 900: '#3D2E1F', 700: '#5C4A36', 500: '#8B7A65', 400: '#A89B86' },
-            warm:  { 500: '#E89B4C', 600: '#D87E2A' },
-            danger:{ 500: '#E5564E', 50: '#FCEBE9' },
+            ink: { 900: '#3D2E1F', 700: '#5C4A36', 500: '#8B7A65', 400: '#A89B86' },
+            warm: { 500: '#E89B4C', 600: '#D87E2A' },
+            danger: { 500: '#E5564E', 50: '#FCEBE9' },
           },
           fontFamily: { sans: ['"Noto Sans SC"', 'system-ui', 'sans-serif'] },
           boxShadow: {
@@ -30,181 +30,578 @@
   </script>
 
   <style>
-    [data-lucide] { display: inline-block; vertical-align: middle; }
-    html, body { font-family: 'Noto Sans SC', system-ui, sans-serif; height: 100%; overflow: hidden; }
-    html { font-size: 16px; }
-    body { background-color: #FDF9F1; color: #3D2E1F; font-size: 1.0625rem; }
-    .nice-scroll::-webkit-scrollbar { width: 4px; }
-    .nice-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; transition: background .2s; }
-    .nice-scroll:hover::-webkit-scrollbar-thumb { background: #D4BFA0; }
-    .nice-scroll::-webkit-scrollbar-track { background: transparent; margin: 12px 0; }
+    [data-lucide] {
+      display: inline-block;
+      vertical-align: middle;
+    }
 
-    .page { display: none; }
-    .page.active { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    html,
+    body {
+      font-family: 'Noto Sans SC', system-ui, sans-serif;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      background-color: #FDF9F1;
+      color: #3D2E1F;
+      font-size: 1.0625rem;
+    }
+
+    .nice-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .nice-scroll::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 4px;
+      transition: background .2s;
+    }
+
+    .nice-scroll:hover::-webkit-scrollbar-thumb {
+      background: #D4BFA0;
+    }
+
+    .nice-scroll::-webkit-scrollbar-track {
+      background: transparent;
+      margin: 12px 0;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
 
     /* 聊天气泡 */
-    .message { display: flex; align-items: flex-start; gap: 12px; }
-    .message::before {
-      content: ''; width: 44px; height: 44px; border-radius: 50%;
-      flex-shrink: 0; background-size: cover; background-position: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    .message {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
     }
+
+    .message::before {
+      content: '';
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
     .message-bot::before {
       background-color: #FAF3E4;
       background-image: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=3'));
     }
-    .message-user { flex-direction: row-reverse; }
+
+    .message-user {
+      flex-direction: row-reverse;
+    }
+
     .message-user::before {
       background-color: #F3E8CF;
       background-image: url('https://api.dicebear.com/9.x/personas/svg?seed=LiUncle&backgroundColor=c5d4e8');
     }
+
     .bubble {
-      padding: 12px 20px; border-radius: 18px; max-width: 75%;
-      font-size: 1.0625rem; line-height: 1.55; color: #3D2E1F; word-break: break-word;
+      padding: 12px 20px;
+      border-radius: 18px;
+      max-width: 75%;
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: #3D2E1F;
+      word-break: break-word;
     }
-    .message-bot .bubble { background: #FAF3E4; border-top-left-radius: 6px; }
-    .message-user .bubble { background: #F3E8CF; border-top-right-radius: 6px; }
+
+    .message-bot .bubble {
+      background: #FAF3E4;
+      border-top-left-radius: 6px;
+    }
+
+    .message-user .bubble {
+      background: #F3E8CF;
+      border-top-right-radius: 6px;
+    }
+
     .thinking-dots::after {
-      content: ''; display: inline-block; width: 8px;
+      content: '';
+      display: inline-block;
+      width: 8px;
       animation: thinkingDot 1.2s steps(4, end) infinite;
     }
-    @keyframes thinkingDot { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+
+    @keyframes thinkingDot {
+      0% {
+        content: ''
+      }
+
+      25% {
+        content: '.'
+      }
+
+      50% {
+        content: '..'
+      }
+
+      75% {
+        content: '...'
+      }
+    }
 
     /* 会话列表 */
     .session-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 12px; border-radius: 12px; cursor: pointer;
-      transition: all .15s; border: 1px solid transparent; margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .15s;
+      border: 1px solid transparent;
+      margin-bottom: 2px;
     }
-    .session-item:hover { background: #FDF9F1; border-color: #F3E8CF; }
-    .session-item.active { background: #FAF3E4; border-color: #E8D5A8; }
-    .session-time { font-size: 0.78rem; color: #D87E2A; font-weight: 500; margin-bottom: 2px; }
-    .session-summary { font-size: 0.9rem; color: #3D2E1F; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .session-delete-btn { background: transparent; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; opacity: 0.4; transition: all .15s; color: #8B7A65; font-size: 0.9rem; }
-    .session-delete-btn:hover { opacity: 1; background: #FCEBE9; color: #E5564E; }
+
+    .session-item:hover {
+      background: #FDF9F1;
+      border-color: #F3E8CF;
+    }
+
+    .session-item.active {
+      background: #FAF3E4;
+      border-color: #E8D5A8;
+    }
+
+    .session-time {
+      font-size: 0.78rem;
+      color: #D87E2A;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .session-summary {
+      font-size: 0.9rem;
+      color: #3D2E1F;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session-delete-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      opacity: 0.4;
+      transition: all .15s;
+      color: #8B7A65;
+      font-size: 0.9rem;
+    }
+
+    .session-delete-btn:hover {
+      opacity: 1;
+      background: #FCEBE9;
+      color: #E5564E;
+    }
 
     /* 视频/数字人区域（容器尺寸/形状统一在 styles.css 的 .digital-human-container 中定义） */
     #breathingLight {
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       background: radial-gradient(circle at center, transparent, transparent);
-      opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 2;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+      z-index: 2;
     }
-    #breathingLight.active { opacity: 1; }
-    #breathingLight.listening { background: radial-gradient(circle at center, rgba(232,155,76,0.18), transparent 65%); animation: breathePulse 2s ease-in-out infinite; }
-    #breathingLight.thinking  { background: radial-gradient(circle at center, rgba(99,179,237,0.18), transparent 65%); }
-    #breathingLight.speaking  { background: radial-gradient(circle at center, rgba(229,86,78,0.15), transparent 65%); animation: breathePulse 1.4s ease-in-out infinite; }
-    @keyframes breathePulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+    #breathingLight.active {
+      opacity: 1;
+    }
+
+    #breathingLight.listening {
+      background: radial-gradient(circle at center, rgba(232, 155, 76, 0.18), transparent 65%);
+      animation: breathePulse 2s ease-in-out infinite;
+    }
+
+    #breathingLight.thinking {
+      background: radial-gradient(circle at center, rgba(99, 179, 237, 0.18), transparent 65%);
+    }
+
+    #breathingLight.speaking {
+      background: radial-gradient(circle at center, rgba(229, 86, 78, 0.15), transparent 65%);
+      animation: breathePulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes breathePulse {
+
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
     #avatarStatus {
-      position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.45); color: #fff; padding: 6px 14px;
-      border-radius: 9999px; font-size: 0.875rem; font-weight: 500;
-      backdrop-filter: blur(8px); z-index: 12; white-space: nowrap;
+      position: absolute;
+      bottom: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      backdrop-filter: blur(8px);
+      z-index: 12;
+      white-space: nowrap;
     }
 
     /* 语音按钮 */
-    .center-voice-btn { user-select: none; -webkit-user-select: none; touch-action: none; }
+    .center-voice-btn {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
     .center-voice-btn.recording {
       background: linear-gradient(135deg, #E5564E, #D43F3F) !important;
       animation: recordingPulse 1s ease-in-out infinite;
     }
-    .center-voice-btn.pressing { transform: scale(0.96); }
-    @keyframes recordingPulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(229,86,78,0.45); }
-      50%       { box-shadow: 0 0 0 10px rgba(229,86,78,0); }
+
+    .center-voice-btn.pressing {
+      transform: scale(0.96);
     }
-    .voice-wave { display: flex; align-items: center; gap: 3px; height: 22px; }
-    .voice-wave span { width: 3px; background: rgba(255,255,255,0.9); border-radius: 2px; animation: waveBar 0.7s ease-in-out infinite; }
-    .voice-wave span:nth-child(1) { height: 6px;  animation-delay: 0s; }
-    .voice-wave span:nth-child(2) { height: 14px; animation-delay: 0.1s; }
-    .voice-wave span:nth-child(3) { height: 20px; animation-delay: 0.2s; }
-    .voice-wave span:nth-child(4) { height: 14px; animation-delay: 0.3s; }
-    .voice-wave span:nth-child(5) { height: 6px;  animation-delay: 0.4s; }
-    @keyframes waveBar { 0%, 100% { transform: scaleY(0.5); opacity: 0.65; } 50% { transform: scaleY(1); opacity: 1; } }
+
+    @keyframes recordingPulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(229, 86, 78, 0.45);
+      }
+
+      50% {
+        box-shadow: 0 0 0 10px rgba(229, 86, 78, 0);
+      }
+    }
+
+    .voice-wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 22px;
+    }
+
+    .voice-wave span {
+      width: 3px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 2px;
+      animation: waveBar 0.7s ease-in-out infinite;
+    }
+
+    .voice-wave span:nth-child(1) {
+      height: 6px;
+      animation-delay: 0s;
+    }
+
+    .voice-wave span:nth-child(2) {
+      height: 14px;
+      animation-delay: 0.1s;
+    }
+
+    .voice-wave span:nth-child(3) {
+      height: 20px;
+      animation-delay: 0.2s;
+    }
+
+    .voice-wave span:nth-child(4) {
+      height: 14px;
+      animation-delay: 0.3s;
+    }
+
+    .voice-wave span:nth-child(5) {
+      height: 6px;
+      animation-delay: 0.4s;
+    }
+
+    @keyframes waveBar {
+
+      0%,
+      100% {
+        transform: scaleY(0.5);
+        opacity: 0.65;
+      }
+
+      50% {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+    }
 
     /* 关怀模式 */
-    html.care-mode { font-size: 20px; }
+    html.care-mode {
+      font-size: 20px;
+    }
 
     /* 设置抽屉开关（由 body.care-mode 驱动开/关状态） */
     .settings-switch {
-      position: relative; width: 48px; height: 28px; border-radius: 9999px;
-      background: #E8D5A8; transition: background .2s; flex-shrink: 0; cursor: pointer;
-      border: none; padding: 0;
+      position: relative;
+      width: 48px;
+      height: 28px;
+      border-radius: 9999px;
+      background: #E8D5A8;
+      transition: background .2s;
+      flex-shrink: 0;
+      cursor: pointer;
+      border: none;
+      padding: 0;
     }
+
     .settings-switch .settings-switch-knob {
-      position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
-      border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
       transition: transform .2s;
     }
-    body.care-mode .settings-switch { background: #E89B4C; }
-    body.care-mode .settings-switch .settings-switch-knob { transform: translateX(20px); }
 
-    #historyDrawer { will-change: transform; }
+    body.care-mode .settings-switch {
+      background: #E89B4C;
+    }
+
+    body.care-mode .settings-switch .settings-switch-knob {
+      transform: translateX(20px);
+    }
+
+    #historyDrawer {
+      will-change: transform;
+    }
 
     /* Toast */
     .toast-message {
-      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-      padding: 12px 24px; border-radius: 12px; font-size: 1rem; font-weight: 500;
-      z-index: 9999; white-space: nowrap; animation: toastIn .3s ease;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      z-index: 9999;
+      white-space: nowrap;
+      animation: toastIn .3s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     }
-    .toast-message.info    { background: #FAF3E4; color: #92400E; }
-    .toast-message.warning { background: #FEF3C7; color: #92400E; }
-    .toast-message.error   { background: #FCEBE9; color: #B91C1C; }
-    @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
-    @keyframes fadeOutDown { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 20px); } }
 
-    #camera { width: 100%; height: 100%; object-fit: cover; background: #1a1a1a; }
-    .camera-hint:empty { display: none !important; }
+    .toast-message.info {
+      background: #FAF3E4;
+      color: #92400E;
+    }
+
+    .toast-message.warning {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .toast-message.error {
+      background: #FCEBE9;
+      color: #B91C1C;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    @keyframes fadeOutDown {
+      from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+    }
+
+    #camera {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #1a1a1a;
+    }
+
+    .camera-hint:empty {
+      display: none !important;
+    }
   </style>
 </head>
 
 <body class="h-screen overflow-hidden">
 
+  <div id="loginPage" class="page active">
+    <div class="auth-shell">
+      <main class="auth-card">
+        <section class="auth-brand-panel">
+          <div class="auth-brand-mark">
+            <i data-lucide="heart-handshake" style="width:40px;height:40px;stroke-width:1.8"></i>
+          </div>
+          <h1>智伴暖阳</h1>
+          <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
+          <div class="auth-illustration">
+            <img src="old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+          </div>
+        </section>
+
+        <section class="auth-form-panel">
+          <h2>&#x6b22;&#x8fce;&#x56de;&#x6765;</h2>
+          <p>&#x767b;&#x5f55;&#x540e;&#x7ee7;&#x7eed;&#x60a8;&#x7684;&#x966a;&#x4f34;&#x4e4b;&#x65c5;</p>
+          <form class="auth-form" onsubmit="handleLoginSubmit(event)">
+            <label>
+              <span>&#x7528;&#x6237;&#x540d;</span>
+              <input id="loginUsernameInput" type="text" placeholder="&#x8bf7;&#x8f93;&#x5165;&#x7528;&#x6237;&#x540d;"
+                autocomplete="username">
+            </label>
+            <label>
+              <span>&#x5bc6;&#x7801;</span>
+              <input id="loginPasswordInput" type="password" placeholder="&#x8bf7;&#x8f93;&#x5165;&#x5bc6;&#x7801;"
+                autocomplete="current-password">
+            </label>
+            <div class="auth-row">
+              <label class="auth-check">
+                <input id="loginRememberInput" type="checkbox">
+                <span>&#x8bb0;&#x4f4f;&#x6211;</span>
+              </label>
+              <button type="button" class="auth-link-btn"
+                onclick="showToast('\u5fd8\u8bb0\u5bc6\u7801\u529f\u80fd\u5df2\u9884\u7559', 'info')">&#x5fd8;&#x8bb0;&#x5bc6;&#x7801;</button>
+            </div>
+            <button type="submit" class="auth-primary-btn">&#x767b;&#x5f55;</button>
+          </form>
+          <div class="auth-bottom-text">&#x8fd8;&#x6ca1;&#x6709;&#x8d26;&#x53f7;&#xff1f;<button type="button"
+              onclick="showRegisterPage()">&#x53bb;&#x6ce8;&#x518c;</button></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="registerPage" class="page">
+    <div class="auth-shell">
+      <main class="auth-card">
+        <section class="auth-brand-panel">
+          <div class="auth-brand-mark">
+            <i data-lucide="heart-handshake" style="width:40px;height:40px;stroke-width:1.8"></i>
+          </div>
+          <h1>智伴暖阳</h1>
+          <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
+          <div class="auth-illustration">
+            <img src="old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+          </div>
+        </section>
+
+        <section class="auth-form-panel">
+          <h2>&#x521b;&#x5efa;&#x65b0;&#x8d26;&#x53f7;</h2>
+          <p>&#x6ce8;&#x518c;&#x540e;&#x5f00;&#x542f;&#x4e13;&#x5c5e;&#x966a;&#x4f34;&#x670d;&#x52a1;</p>
+          <form class="auth-form" onsubmit="handleRegisterSubmit(event)">
+            <label>
+              <span>&#x7528;&#x6237;&#x540d;</span>
+              <input id="registerUsernameInput" type="text"
+                placeholder="&#x8bf7;&#x8bbe;&#x7f6e;&#x7528;&#x6237;&#x540d;" autocomplete="username">
+            </label>
+            <label>
+              <span>&#x8bbe;&#x7f6e;&#x5bc6;&#x7801;</span>
+              <input id="registerPasswordInput" type="password"
+                placeholder="&#x8bf7;&#x8bbe;&#x7f6e; 6-16 &#x4f4d;&#x5bc6;&#x7801;" autocomplete="new-password">
+            </label>
+            <label class="auth-check agreement-check">
+              <input id="registerAgreementInput" type="checkbox">
+              <span>&#x6211;&#x5df2;&#x9605;&#x8bfb;&#x5e76;&#x540c;&#x610f;&#x300a;&#x7528;&#x6237;&#x534f;&#x8bae;&#x300b;&#x548c;&#x300a;&#x9690;&#x79c1;&#x653f;&#x7b56;&#x300b;</span>
+            </label>
+            <button type="submit" class="auth-primary-btn">&#x6ce8;&#x518c;</button>
+          </form>
+          <div class="auth-bottom-text">&#x5df2;&#x6709;&#x8d26;&#x53f7;&#xff1f;<button type="button"
+              onclick="showLoginPage()">&#x53bb;&#x767b;&#x5f55;</button></div>
+        </section>
+      </main>
+    </div>
+  </div>
   <!-- ============================================================
        选择数字人页面
        ============================================================ -->
-  <div id="selectPage" class="page active">
-    <div class="flex-1 flex items-center justify-center px-6">
-      <div class="max-w-4xl w-full">
-        <div class="text-center mb-10">
-          <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-warm-500 to-warm-600 flex items-center justify-center text-white mb-4 shadow-lg">
-            <i data-lucide="heart-handshake" style="width:44px;height:44px;stroke-width:1.8"></i>
+  <div id="selectPage" class="page">
+    <div class="select-shell">
+      <header class="select-nav">
+        <div class="brand-lockup">
+          <div class="brand-mark">
+            <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
-          <h1 class="text-4xl font-bold text-ink-900">温心陪伴</h1>
-          <p class="text-lg text-ink-500 mt-2">请选择您的陪伴朋友</p>
+          <div>
+            <h1>智伴暖阳</h1>
+            <p>数字人陪伴您每一天</p>
+          </div>
         </div>
 
-        <!-- 用户选择条 -->
-        <div id="selectPageUserBar" class="flex items-center justify-center flex-wrap gap-2 mb-8 min-h-[44px]"></div>
+        <nav class="select-nav-links" aria-label="主导航">
+          <a class="active" href="javascript:void(0)" onclick="showHomePage()">首页</a>
+          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
+          <a href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
+          <a href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
+        </nav>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <button onclick="selectAvatar(1)" class="group bg-white rounded-3xl shadow-card p-6 hover:-translate-y-1 hover:shadow-lg transition text-center">
-            <img src="/static/avatar-xiaoli.png?v=3" class="w-28 h-28 mx-auto rounded-full mb-4 bg-cream-100 object-cover" alt="小丽">
-            <h3 class="text-2xl font-bold text-ink-900">小丽</h3>
-            <p class="text-ink-500 mt-1">贴心孙女 · 温柔陪伴</p>
-            <div class="mt-4 inline-flex items-center gap-2 text-warm-600 font-medium">选择她 →</div>
-          </button>
-          <button onclick="selectAvatar(2)" class="group bg-white rounded-3xl shadow-card p-6 hover:-translate-y-1 hover:shadow-lg transition text-center">
-            <img src="/static/avatar-laowang.png?v=3" class="w-28 h-28 mx-auto rounded-full mb-4 bg-cream-100 object-cover" alt="老王">
-            <h3 class="text-2xl font-bold text-ink-900">老王</h3>
-            <p class="text-ink-500 mt-1">同龄老友 · 唠嗑谈心</p>
-            <div class="mt-4 inline-flex items-center gap-2 text-warm-600 font-medium">选择他 →</div>
-          </button>
-          <button onclick="selectAvatar(3)" class="group bg-white rounded-3xl shadow-card p-6 hover:-translate-y-1 hover:shadow-lg transition text-center">
-            <img src="/static/avatar-xiaoming.png?v=3" class="w-28 h-28 mx-auto rounded-full mb-4 bg-cream-100 object-cover" alt="小明">
-            <h3 class="text-2xl font-bold text-ink-900">小明</h3>
-            <p class="text-ink-500 mt-1">年轻伙伴 · 活力陪聊</p>
-            <div class="mt-4 inline-flex items-center gap-2 text-warm-600 font-medium">选择他 →</div>
+        <div class="nav-actions">
+          <div class="greeting-pill">
+            <span id="selectTimeGreeting">晚上</span><span></span><span id="selectUserDisplayName">朋友</span>
+          </div>
+          <button type="button" onclick="openLogoutConfirm()" class="nav-exit-btn">
+            <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <span>退出</span>
           </button>
         </div>
+      </header>
 
-        <!-- 自定义数字人形象上传 -->
-        <div class="mt-8 text-center">
-          <p class="text-ink-500 mb-3">或上传自定义形象</p>
-          <label class="inline-flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-dashed border-cream-300 hover:border-warm-500 rounded-full cursor-pointer transition text-ink-600 hover:text-warm-600 font-medium" for="avatarUploadInput">
-            <i data-lucide="camera" style="width:18px;height:18px"></i> 上传我的形象
-            <input type="file" id="avatarUploadInput" accept="image/png,image/jpeg,image/webp"
-              style="display:none" onchange="handleAvatarUpload(this)">
+      <main class="select-main">
+        <section class="select-hero">
+          <h2>智伴暖阳</h2>
+          <p class="select-subtitle">请选择您的陪伴朋友</p>
+        </section>
+
+        <section id="companionCards" class="companion-card-grid" aria-label="陪伴对象"></section>
+
+        <section class="select-upload-section">
+          <label class="upload-dashed-card" for="avatarUploadInput">
+            <span class="upload-icon-wrap">
+              <i data-lucide="camera" style="width:28px;height:28px"></i>
+            </span>
+            <span class="upload-title">上传我的形象</span>
+            <span class="upload-subtitle">让 AI 更懂您</span>
+            <input type="file" id="avatarUploadInput" accept="image/png,image/jpeg,image/webp" style="display:none"
+              onchange="handleAvatarUpload(this)">
           </label>
           <div id="uploadPreview" class="upload-preview" style="display:none">
             <img id="uploadPreviewImg" src="" alt="预览">
@@ -213,326 +610,551 @@
               <button class="cancel-btn" onclick="cancelUpload()">取消</button>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   </div>
 
-  <!-- ============================================================
-       聊天主页面
-       ============================================================ -->
-  <div id="chatPage" class="page">
-    <div class="w-full h-screen px-4 py-3 flex flex-col gap-3">
-
-      <!-- 顶栏 -->
-      <header class="flex-shrink-0 flex items-center justify-between bg-white rounded-2xl shadow-soft px-6 py-3">
-        <div class="flex items-center gap-4">
-          <button onclick="openHistory()" aria-label="对话历史"
-            class="w-12 h-12 flex items-center justify-center rounded-xl border-2 border-cream-200 hover:border-warm-500 hover:bg-cream-50 text-ink-700 transition">
-            <i data-lucide="panel-left" style="width:22px;height:22px"></i>
-          </button>
-          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-warm-500 to-warm-600 flex items-center justify-center text-white shadow-md">
-            <i data-lucide="heart-handshake" style="width:30px;height:30px;stroke-width:1.8"></i>
+  <div id="reminderPage" class="page">
+    <div class="reminder-shell">
+      <header class="select-nav">
+        <div class="brand-lockup">
+          <div class="brand-mark">
+            <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-ink-900 leading-tight">温心陪伴</h1>
-            <p class="text-sm text-ink-500 mt-0.5">数字人陪伴您每一天</p>
+            <h1>智伴暖阳</h1>
+            <p>数字人陪伴您每一天</p>
           </div>
         </div>
 
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 bg-cream-100 rounded-full px-5 py-2.5">
-            <span id="timeGreeting" class="text-lg font-medium text-ink-900">下午好</span>
-            <span class="text-lg font-medium text-ink-900">，</span>
-            <span id="userDisplayName" class="text-lg font-medium text-ink-900">朋友</span>
+        <nav class="select-nav-links" aria-label="主导航">
+          <a href="javascript:void(0)" onclick="showHomePage()">首页</a>
+          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
+          <a class="active" href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
+          <a href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
+        </nav>
+
+        <div class="nav-actions">
+          <div class="greeting-pill">
+            <span id="reminderTimeGreeting">晚上</span><span></span><span id="reminderUserDisplayName">朋友</span>
           </div>
-          <button onclick="goBack()" class="flex items-center gap-2 border-2 border-danger-500 text-danger-500 hover:bg-danger-50 transition rounded-full px-5 py-2.5 font-medium">
-            <i data-lucide="log-out" style="width:18px;height:18px"></i> 退出
+          <button type="button" onclick="showHomePage()" class="nav-exit-btn">
+            <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <span>返回</span>
           </button>
         </div>
       </header>
 
-      <!-- 主体两栏（历史对话改为左侧抽拉式抽屉） -->
-      <main class="flex-1 min-h-0 grid grid-cols-12 gap-4">
-
-        <!-- 左：数字人视频（仅视频）-->
-        <section class="col-span-12 lg:col-span-6 min-h-0 h-full flex flex-col items-center justify-center">
-
-          <!-- 视频通话区 -->
-          <div class="digital-human-frame rounded-3xl overflow-hidden shadow-card" style="background: linear-gradient(135deg, #F3E8CF, #E8D5A8);">
-            <div id="digitalHumanArea" class="digital-human-container">
-              <div id="breathingLight"></div>
-              <div id="avatarStatus">
-                <span id="statusText">在线</span>
-              </div>
-            </div>
-
-            <!-- 左上：数字人名牌（含头像） -->
-            <div class="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur text-white rounded-full pl-1 pr-4 py-1 shadow-lg z-10">
-              <div id="botBadgeAvatar" class="w-8 h-8 rounded-full bg-emerald-400 flex-shrink-0" style="background-size:cover;background-position:center"></div>
-              <span class="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0 animate-pulse"></span>
-              <span class="font-medium text-sm"><span id="botName">小丽</span></span>
-            </div>
-
-            <!-- 右上：用户摄像头 PiP -->
-            <div class="absolute top-4 right-4 z-10">
-              <div class="w-36 h-24 rounded-xl overflow-hidden shadow-lg border-2 border-white relative bg-gray-900">
-                <video id="camera" autoplay muted playsinline></video>
-                <div class="camera-hint absolute inset-0 flex items-center justify-center text-white text-xs pointer-events-none px-2 text-center" style="background: rgba(0,0,0,0.55);"></div>
-                <div class="absolute bottom-1 left-1 bg-black/60 text-white text-xs rounded px-1.5 py-0.5">您</div>
-              </div>
-            </div>
-          </div>
-
-        </section>
-
-        <!-- 右：快捷服务 + 当前对话 + 输入 + 天气 + 提醒 -->
-        <aside class="col-span-12 lg:col-span-6 min-h-0 h-full flex flex-col gap-3">
-
-          <!-- 快捷服务（点击展开列表） -->
-          <div class="flex-shrink-0 relative">
-            <button type="button" id="quickMenuBtn" onclick="toggleQuickMenu()"
-              class="w-full bg-white rounded-2xl shadow-card flex items-center gap-2 px-4 py-4 hover:bg-cream-50 transition">
-              <i data-lucide="zap" class="text-warm-500" style="width:22px;height:22px"></i>
-              <h3 class="text-xl font-bold text-ink-900">快捷服务</h3>
-              <i data-lucide="chevron-down" id="quickMenuChevron" class="ml-auto text-ink-400 transition-transform duration-200" style="width:22px;height:22px"></i>
-            </button>
-            <div id="quickMenu" class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-card border border-cream-100 p-2 z-30 max-h-[60vh] overflow-y-auto nice-scroll">
-              <button onclick="sendQuickPhrase('今天天气怎么样？')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0"><i data-lucide="cloud-sun" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">查天气</span>
-              </button>
-              <button onclick="sendQuickPhrase('给我讲个笑话')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-600 flex-shrink-0"><i data-lucide="smile" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">讲笑话</span>
-              </button>
-              <button onclick="sendQuickPhrase('今天有什么养生小知识？')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0"><i data-lucide="leaf" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">养生小知识</span>
-              </button>
-              <button onclick="sendQuickPhrase('给我讲个故事')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0"><i data-lucide="book-open" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">听故事</span>
-              </button>
-              <button onclick="sendQuickPhrase('唱首歌给我听')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 flex-shrink-0"><i data-lucide="music" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">听歌</span>
-              </button>
-              <button onclick="sendQuickPhrase('我有点闷，陪我聊聊')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cream-50 transition text-left">
-                <span class="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0"><i data-lucide="message-circle" style="width:20px;height:20px"></i></span>
-                <span class="text-base text-ink-900 font-medium">解闷聊聊</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 当前对话气泡区 -->
-          <div class="flex-1 min-h-0 bg-white rounded-2xl shadow-card overflow-hidden flex flex-col">
-            <div class="chat-history-area flex-1 overflow-y-auto nice-scroll p-4">
-              <div id="messagesContainer" class="flex flex-col gap-3"></div>
-            </div>
-          </div>
-
-          <!-- 输入区 -->
-          <div class="flex-shrink-0 bg-white rounded-full shadow-card flex items-center gap-3 pl-3 pr-3 py-2">
-            <button id="centerVoiceBtn" type="button"
-              onmousedown="startVoiceRecording()" onmouseup="stopVoiceRecording()" onmouseleave="stopVoiceRecording()"
-              ontouchstart="startVoiceRecording()" ontouchend="stopVoiceRecording()" ontouchcancel="stopVoiceRecording()"
-              class="center-voice-btn flex-shrink-0 h-12 px-5 rounded-full bg-gradient-to-br from-warm-500 to-warm-600 shadow-lg flex items-center gap-2 text-white transition-transform">
-              <div id="voiceIdleState" class="flex items-center gap-2">
-                <i data-lucide="mic" style="width:20px;height:20px"></i>
-                <span class="font-medium text-base whitespace-nowrap">按住 说话</span>
-              </div>
-              <div id="voiceRecordingState" class="hidden items-center gap-2">
-                <div class="voice-wave">
-                  <span></span><span></span><span></span><span></span><span></span>
-                </div>
-                <span class="font-medium text-base whitespace-nowrap">松开 发送</span>
-              </div>
-            </button>
-
-            <div class="w-px h-8 bg-cream-200 flex-shrink-0"></div>
-
-            <div class="flex items-center gap-2 flex-1">
-              <input id="messageInput" type="text" placeholder="或在此输入..."
-                class="flex-1 min-w-0 px-4 py-2 rounded-full border-2 border-cream-200 focus:border-warm-500 outline-none text-base text-ink-900" />
-              <button id="sendBtn" class="flex-shrink-0 px-5 py-2 bg-warm-500 hover:bg-warm-600 text-white rounded-full font-medium flex items-center gap-1.5 transition">
-                发送
-              </button>
-            </div>
-          </div>
-
-          <!-- 天气卡 -->
-          <div class="flex-shrink-0 bg-gradient-to-br from-sky-50 to-cream-50 rounded-2xl shadow-card p-4">
-            <div class="flex items-center justify-between mb-2">
-              <div class="flex items-center gap-1.5">
-                <i data-lucide="map-pin" class="text-ink-500" style="width:16px;height:16px"></i>
-                <span id="weatherCity" class="text-base font-medium text-ink-700">--</span>
-              </div>
-              <span class="text-sm text-ink-500" id="weatherDay">今天</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="flex items-baseline gap-1">
-                  <span id="weatherTemp" class="text-5xl font-black text-ink-900 leading-none">--</span>
-                  <span class="text-xl font-medium text-ink-700">°C</span>
-                </div>
-                <div id="weatherText" class="text-base text-ink-700 mt-1">加载中...</div>
-                <div class="flex items-center gap-1.5 mt-1 text-sm text-ink-500">
-                  <i data-lucide="wind" style="width:14px;height:14px"></i>
-                  <span id="weatherWind">--</span>
-                </div>
-              </div>
-              <div id="weatherIcon" class="text-amber-400">
-                <i data-lucide="cloud-sun" style="width:64px;height:64px;stroke-width:1.2"></i>
-              </div>
-            </div>
-          </div>
-
-          <!-- 温馨提示 / 我的提醒 -->
-          <div class="flex-shrink-0 bg-gradient-to-br from-cream-100 to-cream-50 rounded-2xl shadow-card p-4 relative overflow-hidden">
-            <div class="flex items-center gap-2 mb-2">
-              <i data-lucide="megaphone" class="text-warm-500" style="width:20px;height:20px"></i>
-              <h3 class="text-lg font-bold text-ink-900">温馨提示</h3>
-              <span id="reminderCount" class="ml-auto text-xs text-warm-600 font-medium hidden"></span>
-            </div>
-            <ul id="reminderList" class="space-y-2 overflow-y-auto nice-scroll max-h-28 pr-1"></ul>
-            <p id="reminderEmptyHint" class="text-base leading-relaxed text-ink-700 pr-10">
-              天气多变，注意增减衣物。记得按时喝水、按时吃药。<br>
-              <span class="text-sm text-ink-500">想加个提醒？试试说「下午三点提醒我吃药」～</span>
-            </p>
-          </div>
+      <main class="reminder-layout">
+        <aside class="reminder-side-menu">
+          <div class="side-menu-title">提醒管理</div>
+          <button id="reminderMenuMine" class="active" type="button" onclick="switchReminderPanel('mine')"><i
+              data-lucide="bell-ring" style="width:20px;height:20px"></i>
+            我的提醒</button>
+          <button id="reminderMenuFamily" type="button" onclick="switchReminderPanel('family')"><i data-lucide="users"
+              style="width:20px;height:20px"></i> 家人通知</button>
+          <button id="reminderMenuRecords" type="button" onclick="switchReminderPanel('records')"><i
+              data-lucide="history" style="width:20px;height:20px"></i> 提醒记录</button>
         </aside>
-      </main>
 
-      <footer class="flex-shrink-0 text-center">
-        <p class="text-xs text-ink-400">温馨提示：本服务仅为情感陪伴和信息查询参考，如有身体不适，请及时就医。</p>
-      </footer>
+        <section class="reminder-content">
+          <div id="myReminderPanel">
+            <div class="reminder-content-head">
+              <div>
+                <h2>我的提醒</h2>
+                <p>管理用药、喝水、散步等日常事项</p>
+              </div>
+              <button type="button" class="add-reminder-btn" onclick="addReminderPlaceholder()">
+                <i data-lucide="plus" style="width:20px;height:20px"></i>
+                添加提醒
+              </button>
+            </div>
+
+            <div id="reminderCategoryTabs" class="reminder-tabs"></div>
+            <div id="reminderServiceList" class="reminder-card-list"></div>
+          </div>
+
+          <div id="familyNotifyPanel" class="reminder-panel-hidden">
+            <div class="reminder-content-head">
+              <div>
+                <h2>家人通知</h2>
+                <p>可以设置提醒同步给家人</p>
+              </div>
+            </div>
+
+            <div class="reminder-card-list">
+              <article class="reminder-card reminder-info-card">
+                <div class="reminder-icon"><i data-lucide="users" style="width:28px;height:28px"></i></div>
+                <div class="reminder-info">
+                  <h3>家属联系人</h3>
+                  <div class="family-contact-list">
+                    <div><strong>女儿 张女士</strong><span>138****5678</span></div>
+                    <div><strong>儿子 李先生</strong><span>139****1234</span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="reminder-card reminder-settings-card">
+                <div class="reminder-info">
+                  <h3>通知设置</h3>
+                  <div id="familyNotifySettingsList" class="family-notify-settings"></div>
+                </div>
+              </article>
+
+              <button type="button" class="add-reminder-btn reminder-panel-save-btn"
+                onclick="saveFamilyNotifySettings()">保存设置</button>
+            </div>
+          </div>
+
+          <div id="reminderRecordPanel" class="reminder-panel-hidden">
+            <div class="reminder-content-head">
+              <div>
+                <h2>提醒记录</h2>
+                <p>查看最近的提醒操作记录</p>
+              </div>
+            </div>
+            <div id="reminderRecordList" class="reminder-card-list"></div>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 
-  <!-- 隐藏兼容钩子 -->
+  <div id="reminderEditModal" class="reminder-modal" style="display:none">
+    <div class="reminder-modal-card">
+      <div class="reminder-modal-head">
+        <h2 id="reminderModalTitle">添加提醒</h2>
+        <button type="button" class="reminder-modal-close" onclick="closeReminderModal()" aria-label="关闭">
+          <i data-lucide="x" style="width:22px;height:22px"></i>
+        </button>
+      </div>
+      <div class="reminder-modal-form">
+        <label>
+          <span>提醒名称</span>
+          <input id="reminderNameInput" type="text" placeholder="例如：降压药">
+        </label>
+        <label>
+          <span>提醒类型</span>
+          <select id="reminderTypeSelect">
+            <option value="">请选择类型</option>
+            <option value="medicine">用药提醒</option>
+            <option value="water">喝水提醒</option>
+            <option value="activity">活动提醒</option>
+            <option value="other">其他</option>
+          </select>
+        </label>
+        <label>
+          <span>提醒时间</span>
+          <input id="reminderTimeInput" type="text" placeholder="每天 08:00 或每 2 小时">
+        </label>
+        <label>
+          <span>重复规则</span>
+          <input id="reminderRepeatInput" type="text" placeholder="每日、工作日、8:00-20:00">
+        </label>
+        <label class="reminder-modal-switch-row">
+          <span>是否开启</span>
+          <input id="reminderEnabledInput" type="checkbox" checked>
+        </label>
+      </div>
+      <div class="reminder-modal-actions">
+        <button type="button" class="reminder-modal-cancel" onclick="closeReminderModal()">取消</button>
+        <button type="button" class="reminder-modal-save" onclick="saveReminderFromModal()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="profilePage" class="page">
+    <div class="profile-shell">
+      <header class="select-nav">
+        <div class="brand-lockup">
+          <div class="brand-mark">
+            <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
+          </div>
+          <div>
+            <h1>智伴暖阳</h1>
+            <p>数字人陪伴您每一天</p>
+          </div>
+        </div>
+
+        <nav class="select-nav-links" aria-label="主导航">
+          <a href="javascript:void(0)" onclick="showHomePage()">首页</a>
+          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
+          <a href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
+          <a class="active" href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
+        </nav>
+
+        <div class="nav-actions">
+          <div class="greeting-pill">
+            <span id="profileTimeGreeting">晚上</span><span></span><span id="profileUserDisplayName">朋友</span>
+          </div>
+          <button type="button" onclick="showHomePage()" class="nav-exit-btn">
+            <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <span>返回</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="profile-layout">
+        <aside class="profile-left">
+          <section class="profile-user-card">
+            <div id="profileAvatar" class="profile-avatar"></div>
+            <h2 id="profileName">张阿姨</h2>
+            <p id="profilePhone">138****5678</p>
+            <button type="button" onclick="editProfilePlaceholder()" class="profile-edit-btn">编辑资料</button>
+          </section>
+
+          <section class="profile-menu-card">
+            <div class="profile-menu-title">功能入口</div>
+            <div id="profileMenuList" class="profile-menu-list"></div>
+          </section>
+        </aside>
+
+        <section class="profile-right">
+          <div id="profileStatsGrid" class="profile-stats-grid"></div>
+
+          <section class="profile-chart-card">
+            <div class="profile-section-head">
+              <div>
+                <h2>最近陪伴时</h2>
+                <p>过去 7 天的陪伴记录</p>
+              </div>
+            </div>
+            <div id="profileCompanionChart" class="profile-chart"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="editProfileModal" class="edit-profile-modal" style="display:none" onclick="handleProfileModalBackdrop(event)">
+    <div class="edit-profile-card">
+      <div class="profile-modal-head">
+        <h2>编辑资料</h2>
+        <button type="button" class="profile-modal-close" onclick="closeEditProfileModal()" aria-label="关闭">
+          <i data-lucide="x" style="width:22px;height:22px"></i>
+        </button>
+      </div>
+
+      <div class="edit-profile-avatar-block">
+        <div id="editProfileAvatarPreview" class="edit-profile-avatar-preview"></div>
+        <label class="edit-profile-upload-btn">
+          <i data-lucide="image-plus" style="width:18px;height:18px"></i>
+          <span>上传头像</span>
+          <input id="editProfileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp"
+            onchange="handleEditProfileAvatarUpload(event)">
+        </label>
+      </div>
+
+      <div class="edit-profile-form">
+        <label>
+          <span>姓名</span>
+          <input id="editProfileNameInput" type="text" placeholder="请输入姓名">
+        </label>
+        <label>
+          <span>手机号</span>
+          <input id="editProfilePhoneInput" type="text" placeholder="例如 13800138000 或 138****8000">
+        </label>
+        <label>
+          <span>关系 / 备注</span>
+          <input id="editProfileRemarkInput" type="text" placeholder="例如：本人、父亲、母亲">
+        </label>
+        <label class="edit-profile-switch-row">
+          <span>个人记忆</span>
+          <input id="editProfileMemoryInput" type="checkbox" checked>
+        </label>
+      </div>
+
+      <div class="profile-modal-actions">
+        <button type="button" class="profile-modal-cancel" onclick="closeEditProfileModal()">取消</button>
+        <button type="button" class="profile-modal-save" onclick="saveEditProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="healthProfileModal" class="profile-feature-modal" style="display:none"
+    onclick="if(event.target===this) closeProfileFeatureModal('healthProfileModal')">
+    <div class="profile-feature-card">
+      <div class="profile-modal-head">
+        <h2>我的健康档案</h2>
+        <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('healthProfileModal')"
+          aria-label="关闭">
+          <i data-lucide="x" style="width:22px;height:22px"></i>
+        </button>
+      </div>
+      <div class="profile-feature-body">
+        <div class="profile-form-grid">
+          <label><span>身高 cm</span><input id="healthHeightInput" type="text" placeholder="例如 165"></label>
+          <label><span>体重 kg</span><input id="healthWeightInput" type="text" placeholder="例如 60"></label>
+          <label><span>血压</span><input id="healthBloodPressureInput" type="text" placeholder="例如 120/80"></label>
+          <label><span>血糖（可选）</span><input id="healthBloodSugarInput" type="text" placeholder="例如 5.6 mmol/L"></label>
+          <label><span>常用药</span><input id="healthMedicineInput" type="text" placeholder="例如 降压药"></label>
+          <label><span>过敏史</span><input id="healthAllergyInput" type="text" placeholder="例如 青霉素过敏"></label>
+          <label class="profile-form-wide"><span>备注</span><textarea id="healthNoteInput"
+              placeholder="其他需要记录的信息"></textarea></label>
+        </div>
+      </div>
+      <div class="profile-modal-actions">
+        <button type="button" class="profile-modal-cancel" onclick="closeProfileFeatureModal('healthProfileModal')">取消</button>
+        <button type="button" class="profile-modal-save" onclick="saveHealthProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="familyContactsModal" class="profile-feature-modal" style="display:none"
+    onclick="if(event.target===this) closeProfileFeatureModal('familyContactsModal')">
+    <div class="profile-feature-card">
+      <div class="profile-modal-head">
+        <h2>家庭联系人</h2>
+        <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('familyContactsModal')"
+          aria-label="关闭">
+          <i data-lucide="x" style="width:22px;height:22px"></i>
+        </button>
+      </div>
+      <div class="profile-feature-body">
+        <div id="familyContactList" class="profile-list"></div>
+        <div class="profile-contact-editor">
+          <h3 id="familyContactEditorTitle">新增联系人</h3>
+          <div class="profile-form-grid">
+            <label><span>姓名</span><input id="familyContactNameInput" type="text" placeholder="联系人姓名"></label>
+            <label><span>关系</span><input id="familyContactRelationInput" type="text" placeholder="例如 女儿"></label>
+            <label><span>电话</span><input id="familyContactPhoneInput" type="text" placeholder="11 位手机号或脱敏格式"></label>
+            <label class="edit-profile-switch-row"><span>紧急联系人</span><input id="familyContactEmergencyInput"
+                type="checkbox"></label>
+          </div>
+          <div class="profile-inline-actions">
+            <button type="button" class="profile-modal-cancel" onclick="resetFamilyContactForm()">清空</button>
+            <button type="button" class="profile-modal-save" onclick="saveFamilyContactFromForm()">保存联系人</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="feedbackModal" class="profile-feature-modal" style="display:none"
+    onclick="if(event.target===this) closeProfileFeatureModal('feedbackModal')">
+    <div class="profile-feature-card">
+      <div class="profile-modal-head">
+        <h2>帮助与反</h2>
+        <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('feedbackModal')"
+          aria-label="关闭">
+          <i data-lucide="x" style="width:22px;height:22px"></i>
+        </button>
+      </div>
+      <div class="profile-feature-body">
+        <div class="profile-faq-list">
+          <div><strong>如何切换陪伴对象</strong><p>返回首页后，点击想要陪伴聊天的数字人卡片即可切换</p></div>
+          <div><strong>如何开启关怀模式</strong><p>在设置中打开关怀模式，文字会变得更大更清晰</p></div>
+          <div><strong>如何设置提醒</strong><p>进入提醒服务，点击添加提醒并填写时间、类型和重复规则</p></div>
+          <div><strong>如何切换普通话 / 粤语 / 台湾腔？</strong><p>在个人中心设置里选择默认方言后保存</p></div>
+        </div>
+        <label class="profile-feedback-field">
+          <span>反馈内容</span>
+          <textarea id="feedbackInput" placeholder="请写下您的建议或遇到的问题"></textarea>
+        </label>
+      </div>
+      <div class="profile-modal-actions">
+        <button type="button" class="profile-modal-cancel" onclick="closeFeedbackModal()">取消</button>
+        <button type="button" class="profile-modal-save" onclick="submitFeedback()">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="logoutConfirmModal" class="auth-modal" style="display:none">
+    <div class="auth-modal-card">
+      <div class="auth-modal-icon">
+        <i data-lucide="log-out" style="width:28px;height:28px"></i>
+      </div>
+      <h2>&#x786e;&#x8ba4;&#x9000;&#x51fa;&#x767b;&#x5f55;&#xff1f;</h2>
+      <p>
+        &#x9000;&#x51fa;&#x540e;&#x5c06;&#x8fd4;&#x56de;&#x767b;&#x5f55;&#x754c;&#x9762;&#xff0c;&#x60a8;&#x53ef;&#x4ee5;&#x968f;&#x65f6;&#x91cd;&#x65b0;&#x767b;&#x5f55;&#x3002;
+      </p>
+      <div class="auth-modal-actions">
+        <button type="button" class="modal-cancel-btn" onclick="closeLogoutConfirm()">&#x53d6;&#x6d88;</button>
+        <button type="button" class="modal-confirm-btn" onclick="confirmLogout()">&#x786e;&#x8ba4;</button>
+      </div>
+    </div>
+  </div>
+  <!-- ============================================================
+       聊天主页面
+       ============================================================ -->
+  <div id="chatPage" class="page">
+    <div class="companion-shell">
+      <header class="global-nav">
+        <div class="brand-lockup">
+          <div class="brand-mark">
+            <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
+          </div>
+          <div>
+            <h1>智伴暖阳 </h1>
+            <p>数字人陪伴您每一天</p>
+          </div>
+        </div>
+
+        <div class="nav-actions">
+          <button id="sidebarOpenBtn" onclick="openHistory()" class="sidebar-open-btn" title="打开侧边栏">
+            <i data-lucide="panel-right-open" style="width:20px;height:20px"></i>
+            <span>侧边栏</span>
+          </button>
+          <div class="greeting-pill">
+            <span id="timeGreeting">晚上</span><span></span><span id="userDisplayName">朋友</span>
+          </div>
+          <button onclick="goBack()" class="nav-exit-btn">
+            <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <span>退出</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="companion-layout">
+        <section class="main-chat-panel">
+          <div class="video-call-card">
+            <div class="living-room-bg" aria-hidden="true"></div>
+
+            <div id="digitalHumanArea" class="digital-human-container video-avatar-stage">
+              <div id="breathingLight"></div>
+              <div id="avatarStatus"><span id="statusText">在线</span></div>
+            </div>
+
+            <div class="call-companion-badge">
+              <div id="botBadgeAvatar" class="call-badge-avatar"></div>
+              <div>
+                <div id="botName" class="call-badge-name">小丽</div>
+                <div class="call-online-row"><span></span> 在线</div>
+              </div>
+            </div>
+
+            <div class="self-camera-card">
+              <video id="camera" autoplay muted playsinline></video>
+              <div class="camera-hint">摄像头预览</div>
+              <div class="self-camera-label"></div>
+            </div>
+
+            <div class="video-message-strip chat-history-area nice-scroll">
+              <div id="messagesContainer" class="video-message-list">
+                <div class="message message-bot">晚上好！今天过得怎么样呀？</div>
+              </div>
+            </div>
+
+            <div class="call-controls" aria-label="通话控制">
+              <button id="audioMuteBtn" type="button" onclick="toggleCallControl('mute')" title="静音">
+                <i data-lucide="volume-2" style="width:22px;height:22px"></i>
+              </button>
+              <button id="cameraToggleBtn" type="button" onclick="toggleCallControl('camera')" title="关闭摄像头">
+                <i data-lucide="video" style="width:22px;height:22px"></i>
+              </button>
+              <button id="hangupBtn" type="button" onclick="toggleCallControl('hangup')" class="hangup-control"
+                title="挂断">
+                <i data-lucide="phone-off" style="width:24px;height:24px"></i>
+              </button>
+              <button type="button" onclick="toggleCallControl('speaker')" title="扬声器">
+                <i data-lucide="volume-2" style="width:22px;height:22px"></i>
+              </button>
+              <button type="button" onclick="toggleCallControl('more')" title="更多">
+                <i data-lucide="more-horizontal" style="width:22px;height:22px"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="bottom-composer">
+            <button id="centerVoiceBtn" type="button" onmousedown="startVoiceRecording()"
+              onmouseup="stopVoiceRecording()" onmouseleave="stopVoiceRecording()" ontouchstart="startVoiceRecording()"
+              ontouchend="stopVoiceRecording()" ontouchcancel="stopVoiceRecording()" class="center-voice-btn">
+              <div id="voiceIdleState" class="flex items-center gap-2">
+                <i data-lucide="mic" style="width:20px;height:20px"></i>
+                <span>按住说话</span>
+              </div>
+              <div id="voiceRecordingState" class="hidden items-center gap-2">
+                <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
+                <span>松开发送</span>
+              </div>
+            </button>
+            <input id="messageInput" type="text" placeholder="也可以打字和我说说今天的事..." />
+            <button id="sendBtn" class="send-message-btn">
+              <i data-lucide="send" style="width:18px;height:18px"></i>
+              <span>发送</span>
+            </button>
+          </div>
+        </section>
+
+        <aside id="historyDrawer" class="chat-sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-title">
+              <i data-lucide="messages-square" style="width:22px;height:22px"></i>
+              <h2>对话历史</h2>
+            </div>
+            <button onclick="closeDrawers()" aria-label="关闭侧边栏" class="sidebar-close-btn">
+              <i data-lucide="x" style="width:22px;height:22px"></i>
+            </button>
+          </div>
+
+          <button onclick="newConversation()" type="button" class="new-session-btn">
+            <i data-lucide="plus-circle" style="width:18px;height:18px"></i>
+            <span>开启新对话</span>
+          </button>
+
+          <div class="session-panel">
+            <div class="session-panel-title">
+              <span>历史对话</span>
+              <span id="sessionCount"></span>
+            </div>
+            <div id="sessionList" class="session-list nice-scroll">
+              <div class="session-item">
+                <div class="session-summary">你好</div>
+                <button class="session-delete-btn" aria-label="删除对话">
+                  <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sidebar-bottom">
+            <div id="settingsPanel" class="settings-panel">
+              <div class="care-mode-row">
+                <div>
+                  <div class="settings-label">
+                    <i data-lucide="eye" style="width:16px;height:16px"></i>
+                    <span>关怀模式</span>
+                  </div>
+                  <p>放大字体，方便阅读</p>
+                </div>
+                <button id="careModeSwitch" onclick="toggleCareMode()" role="switch" aria-label="care mode"
+                  class="settings-switch">
+                  <span class="settings-switch-knob"></span>
+                </button>
+              </div>
+
+              <div>
+                <div class="settings-label">
+                  <i data-lucide="languages" style="width:16px;height:16px"></i>
+                  <span>语言方言</span>
+                </div>
+                <div class="dialect-row">
+                  <button class="dialect-btn active" data-dialect="mandarin"
+                    onclick="selectDialect('mandarin')">普通话</button>
+                  <button class="dialect-btn" data-dialect="cantonese" onclick="selectDialect('cantonese')">粤语</button>
+                  <button class="dialect-btn" data-dialect="taiwanese" onclick="selectDialect('taiwanese')">台湾腔</button>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" onclick="toggleSettingsPanel()" class="settings-entry">
+              <i data-lucide="settings" style="width:18px;height:18px"></i>
+              <span>设置</span>
+              <i data-lucide="chevron-up" id="settingsChevron" style="width:18px;height:18px"></i>
+            </button>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+
   <div style="position:absolute;width:0;height:0;overflow:hidden;visibility:hidden;" aria-hidden="true">
     <span id="botDesc"></span>
     <span id="avatarContainer"></span>
   </div>
-
-  <!-- 抽屉遮罩（设置 / 对话历史 共用） -->
-  <div id="drawerOverlay" onclick="closeDrawers()"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[8000] opacity-0 pointer-events-none transition-opacity duration-300"></div>
-
-  <!-- ============================================================
-       对话历史抽屉（左侧抽拉，仿 Claude 网页版，底部含设置）
-       ============================================================ -->
-  <aside id="historyDrawer"
-    class="fixed top-0 left-0 h-full w-[88%] max-w-xs bg-white shadow-2xl z-[8500] flex flex-col -translate-x-full transition-transform duration-300 ease-out">
-
-    <!-- 抽屉头部 -->
-    <div class="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-cream-100">
-      <div class="flex items-center gap-2">
-        <i data-lucide="messages-square" class="text-warm-500" style="width:22px;height:22px"></i>
-        <h2 class="text-xl font-bold text-ink-900">对话历史</h2>
-      </div>
-      <button onclick="closeDrawers()" aria-label="关闭"
-        class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-cream-100 text-ink-500 transition">
-        <i data-lucide="x" style="width:22px;height:22px"></i>
-      </button>
-    </div>
-
-    <!-- 当前用户 + 切换 -->
-    <div class="flex-shrink-0 px-4 py-3 border-b border-cream-100">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div id="currentUserAvatar" class="w-9 h-9 rounded-full bg-cream-200 flex items-center justify-center text-warm-700 font-bold text-sm flex-shrink-0">?</div>
-          <div class="min-w-0">
-            <div id="currentUserDisplay" class="font-semibold text-ink-900 text-sm truncate">未选择用户</div>
-            <div class="text-xs text-ink-400">个人记忆已开启</div>
-          </div>
-        </div>
-        <button onclick="showUserModal()" class="flex-shrink-0 text-xs px-3 py-1.5 text-warm-600 hover:text-white hover:bg-warm-500 border border-warm-300 hover:border-warm-500 rounded-lg font-medium transition">切换</button>
-      </div>
-    </div>
-
-    <!-- 开启新对话 -->
-    <div class="flex-shrink-0 px-4 pt-3">
-      <button onclick="newConversation()" type="button"
-        class="w-full py-2.5 bg-warm-500 hover:bg-warm-600 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition">
-        <i data-lucide="plus-circle" style="width:16px;height:16px"></i> 开启新对话
-      </button>
-    </div>
-
-    <!-- 历史对话列表 -->
-    <div class="flex-shrink-0 flex items-center gap-2 px-4 py-2.5">
-      <i data-lucide="clock" class="text-warm-500" style="width:16px;height:16px"></i>
-      <span class="font-semibold text-ink-900 text-sm">历史对话</span>
-      <span id="sessionCount" class="ml-auto text-xs text-ink-400"></span>
-    </div>
-    <div id="sessionList" class="flex-1 overflow-y-auto nice-scroll px-3 pb-3 min-h-0"></div>
-
-    <!-- 底部：设置（仿 Claude 侧边栏底部，点击展开）-->
-    <div class="flex-shrink-0 border-t border-cream-100">
-      <!-- 展开的设置面板 -->
-      <div id="settingsPanel" class="hidden px-4 pt-4 pb-1 space-y-5">
-        <!-- 关怀模式 -->
-        <div class="flex items-center justify-between">
-          <div class="min-w-0 pr-3">
-            <div class="flex items-center gap-1.5 text-sm font-semibold text-ink-700">
-              <i data-lucide="eye" class="text-warm-500" style="width:16px;height:16px"></i> 关怀模式
-            </div>
-            <p class="text-xs text-ink-400 mt-1">放大字体，方便阅读</p>
-          </div>
-          <button id="careModeSwitch" onclick="toggleCareMode()" role="switch" aria-label="关怀模式开关" class="settings-switch">
-            <span class="settings-switch-knob"></span>
-          </button>
-        </div>
-        <!-- 语音方言 -->
-        <div>
-          <div class="flex items-center gap-1.5 text-sm font-semibold text-ink-700 mb-2">
-            <i data-lucide="languages" class="text-warm-500" style="width:16px;height:16px"></i> 语音方言
-          </div>
-          <div class="flex gap-2">
-            <button class="dialect-btn active" data-dialect="mandarin" onclick="selectDialect('mandarin')">普通话</button>
-            <button class="dialect-btn" data-dialect="cantonese" onclick="selectDialect('cantonese')">粤语</button>
-            <button class="dialect-btn" data-dialect="taiwanese" onclick="selectDialect('taiwanese')">台湾腔</button>
-          </div>
-        </div>
-      </div>
-      <!-- 设置触发行 -->
-      <button type="button" onclick="toggleSettingsPanel()"
-        class="w-full flex items-center gap-2 px-4 py-3.5 text-left hover:bg-cream-50 transition">
-        <i data-lucide="settings" class="text-ink-500" style="width:18px;height:18px"></i>
-        <span class="font-semibold text-ink-900 text-sm">设置</span>
-        <i data-lucide="chevron-up" id="settingsChevron" class="ml-auto text-ink-400 transition-transform duration-200" style="width:18px;height:18px"></i>
-      </button>
-    </div>
-  </aside>
-
-  <!-- 用户管理弹窗 -->
-  <div id="userModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:9000;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:#fff;border-radius:24px;box-shadow:0 8px 40px rgba(0,0,0,0.18);width:100%;max-width:340px;padding:24px;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <i data-lucide="users" style="width:28px;height:28px;color:#e89b4c"></i>
-        <div>
-          <h3 style="font-size:1.1rem;font-weight:700;color:#3d2e1f;margin:0;">选择用户</h3>
-          <p style="font-size:0.78rem;color:#8b7a65;margin:0;">每位用户独立记忆，互不影响</p>
-        </div>
-      </div>
-      <div id="userModalList" style="max-height:200px;overflow-y:auto;margin-bottom:14px;"></div>
-      <div style="border-top:1px solid #f3e8cf;padding-top:12px;">
-        <p style="font-size:0.8rem;color:#8b7a65;font-weight:600;margin-bottom:8px;">添加新用户</p>
-        <div style="display:flex;gap:8px;">
-          <input id="newUserNameInput" type="text" maxlength="10" placeholder="输入名字，如：张大爷"
-            style="flex:1;padding:8px 12px;border:2px solid #e8d5a8;border-radius:10px;font-size:0.9rem;outline:none;"
-            onkeydown="if(event.key==='Enter') confirmNewUser()">
-          <button onclick="confirmNewUser()" style="padding:8px 16px;background:#e89b4c;color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer;">创建</button>
-        </div>
-      </div>
-      <button onclick="hideUserModal()" style="margin-top:12px;width:100%;padding:8px;background:transparent;border:none;color:#8b7a65;font-size:0.9rem;cursor:pointer;border-radius:8px;">关闭</button>
-    </div>
-  </div>
-
   <!-- 天气卡脚本 -->
   <script>
-    // 天气卡数据获取
     async function loadWeather() {
       try {
         const city = localStorage.getItem('warm-companion-city') || '';
@@ -545,19 +1167,31 @@
         const textEl = document.getElementById('weatherText');
         const windEl = document.getElementById('weatherWind');
         const iconEl = document.getElementById('weatherIcon');
-        const dayEl  = document.getElementById('weatherDay');
+        const dayEl = document.getElementById('weatherDay');
         if (cityEl && d.city) cityEl.textContent = d.city;
         if (tempEl && d.temp != null) tempEl.textContent = d.temp;
         if (textEl && d.text) textEl.textContent = d.text;
         if (windEl && d.windDir) windEl.textContent = `${d.windDir} ${d.windScale || ''}级`;
-        if (dayEl  && d.date) dayEl.textContent = d.date;
+        if (dayEl && d.date) dayEl.textContent = d.date;
         if (iconEl && d.text) {
           const t = d.text;
-          const name = /雷/.test(t) ? 'cloud-lightning' : /雪/.test(t) ? 'cloud-snow' : /雨/.test(t) ? 'cloud-rain' : /雾|霾/.test(t) ? 'cloud-fog' : /阴/.test(t) ? 'cloud' : /云/.test(t) ? 'cloud-sun' : 'sun';
+          const name = /雷/.test(t)
+            ? 'cloud-lightning'
+            : /雪/.test(t)
+              ? 'cloud-snow'
+              : /雨/.test(t)
+                ? 'cloud-rain'
+                : /雾|霾/.test(t)
+                  ? 'cloud-fog'
+                  : /阴/.test(t)
+                    ? 'cloud'
+                    : /云/.test(t)
+                      ? 'cloud-sun'
+                      : 'sun';
           iconEl.innerHTML = `<i data-lucide="${name}" style="width:64px;height:64px;stroke-width:1.2"></i>`;
           if (window.lucide) lucide.createIcons();
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     window.addEventListener('DOMContentLoaded', () => {
       if (window.lucide) lucide.createIcons();
@@ -566,7 +1200,8 @@
     });
   </script>
 
-  <script src="/static/script.js?v=25"></script>
+  <script src="script.js?v=29"></script>
 </body>
 
 </html>
+
