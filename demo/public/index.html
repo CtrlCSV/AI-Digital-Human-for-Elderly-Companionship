@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="/static/styles.css?v=13">
   <script>
     tailwind.config = {
       theme: {
@@ -476,7 +476,7 @@
           <h1>智伴暖阳</h1>
           <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
           <div class="auth-illustration">
-            <img src="old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+            <img src="/static/old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
           </div>
         </section>
 
@@ -521,7 +521,7 @@
           <h1>智伴暖阳</h1>
           <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
           <div class="auth-illustration">
-            <img src="old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+            <img src="/static/old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
           </div>
         </section>
 
@@ -1088,6 +1088,32 @@
             </button>
           </div>
 
+          <!-- 天气卡 -->
+          <article class="sidebar-weather-card">
+            <div class="weather-head">
+              <div class="weather-loc">
+                <i data-lucide="map-pin" style="width:15px;height:15px"></i>
+                <span id="weatherCity">--</span>
+              </div>
+              <span id="weatherDay" class="weather-day">今天</span>
+            </div>
+            <div class="weather-body">
+              <div class="weather-main">
+                <div class="weather-temp-row">
+                  <span id="weatherTemp">--</span><span class="weather-unit">°C</span>
+                </div>
+                <div id="weatherText" class="weather-desc">加载中...</div>
+                <div class="weather-wind">
+                  <i data-lucide="wind" style="width:13px;height:13px"></i>
+                  <span id="weatherWind">--</span>
+                </div>
+              </div>
+              <div id="weatherIcon" class="weather-icon">
+                <i data-lucide="cloud-sun" style="width:56px;height:56px;stroke-width:1.2"></i>
+              </div>
+            </div>
+          </article>
+
           <button onclick="newConversation()" type="button" class="new-session-btn">
             <i data-lucide="plus-circle" style="width:18px;height:18px"></i>
             <span>开启新对话</span>
@@ -1182,7 +1208,10 @@
           if (windEl) windEl.textContent = '--';
           return;
         }
-        if (tempEl && weatherTemp != null) tempEl.textContent = weatherTemp;
+        if (tempEl && weatherTemp != null) {
+          const n = Number(weatherTemp);
+          tempEl.textContent = Number.isFinite(n) ? Math.round(n) : weatherTemp;
+        }
         if (textEl && weatherText) textEl.textContent = weatherText;
         if (windEl) {
           if (windDir || windScale) {
@@ -1191,7 +1220,15 @@
             windEl.textContent = `${windSpeed} m/s`;
           }
         }
-        if (dayEl && weather.date) dayEl.textContent = weather.date;
+        if (dayEl) {
+          if (weather.date) {
+            dayEl.textContent = weather.date;
+          } else {
+            const now = new Date();
+            const wk = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][now.getDay()];
+            dayEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk}`;
+          }
+        }
         if (iconEl && weatherText) {
           const t = weatherText;
           const name = /雷/.test(t) ? 'cloud-lightning' : /雪/.test(t) ? 'cloud-snow' : /雨/.test(t) ? 'cloud-rain' : /雾|霾/.test(t) ? 'cloud-fog' : /阴/.test(t) ? 'cloud' : /云/.test(t) ? 'cloud-sun' : 'sun';
@@ -1207,7 +1244,7 @@
     });
   </script>
 
-  <script src="script.js?v=29"></script>
+  <script src="/static/script.js?v=30"></script>
 </body>
 
 </html>

@@ -35,7 +35,10 @@ from emotion import get_face_emotion
 from tts import tts_engine, TTSGenerationError
 from tools import get_weather, get_calendar, get_news
 import reminders as reminders_mod
+import reminder_service as reminder_service_mod
+import userdata as userdata_mod
 import crisis as crisis_mod
+import contacts as contacts_mod
 from contacts import build_contact_action
 
 import contextlib
@@ -366,6 +369,122 @@ async def api_calendar():
     return JSONResponse({"ok": True, **get_calendar()})
 
 
+# =============================================================
+#                       家庭联系人 CRUD
+#   后端 contacts.py 是危机告警 / 「联系家属」的数据源，
+#   前端必须写到这里，否则数字人拿不到真实联系人。
+# =============================================================
+@app.get("/api/contacts")
+async def api_contacts_list(userId: Optional[str] = None):
+    return JSONResponse({"ok": True, "contacts": contacts_mod.list_contacts(userId)})
+
+
+@app.post("/api/contacts")
+async def api_contacts_add(request: Request):
+    body = await request.json()
+    try:
+        contact = contacts_mod.add_contact(
+            user_id=body.get("userId"),
+            name=body.get("name", ""),
+            relation=body.get("relation", ""),
+            phone=body.get("phone", ""),
+            wechat=body.get("wechat", ""),
+            note=body.get("note", ""),
+            is_emergency=bool(body.get("emergency") or body.get("is_emergency")),
+        )
+        return JSONResponse({"ok": True, "contact": contact})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.put("/api/contacts/{contact_id}")
+async def api_contacts_update(contact_id: str, request: Request):
+    body = await request.json()
+    changes = {}
+    for key in ("name", "relation", "phone", "wechat", "note"):
+        if key in body:
+            changes[key] = body[key]
+    if "emergency" in body or "is_emergency" in body:
+        changes["is_emergency"] = bool(body.get("emergency") or body.get("is_emergency"))
+    contact = contacts_mod.update_contact(body.get("userId"), contact_id, **changes)
+    if contact is None:
+        return JSONResponse({"ok": False, "error": "联系人不存在"}, status_code=404)
+    return JSONResponse({"ok": True, "contact": contact})
+
+
+@app.delete("/api/contacts/{contact_id}")
+async def api_contacts_delete(contact_id: str, userId: Optional[str] = None):
+    removed = contacts_mod.remove_contact(userId, contact_id)
+    return JSONResponse({"ok": removed, "removed": removed})
+
+
+# =============================================================
+#                  「我的提醒」可重复提醒 CRUD
+# =============================================================
+@app.get("/api/reminders")
+async def api_reminders_list(userId: Optional[str] = None):
+    return JSONResponse({"ok": True, "items": reminder_service_mod.list_items(userId)})
+
+
+@app.post("/api/reminders")
+async def api_reminders_add(request: Request):
+    body = await request.json()
+    try:
+        item = reminder_service_mod.add(body.get("userId"), body)
+        return JSONResponse({"ok": True, "item": item})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.post("/api/reminders/bulk")
+async def api_reminders_bulk(request: Request):
+    body = await request.json()
+    items = reminder_service_mod.replace_all(body.get("userId"), body.get("items") or [])
+    return JSONResponse({"ok": True, "items": items})
+
+
+@app.put("/api/reminders/{item_id}")
+async def api_reminders_update(item_id: str, request: Request):
+    body = await request.json()
+    item = reminder_service_mod.update(body.get("userId"), item_id, body)
+    if item is None:
+        return JSONResponse({"ok": False, "error": "提醒不存在"}, status_code=404)
+    return JSONResponse({"ok": True, "item": item})
+
+
+@app.delete("/api/reminders/{item_id}")
+async def api_reminders_delete(item_id: str, userId: Optional[str] = None):
+    removed = reminder_service_mod.remove(userId, item_id)
+    return JSONResponse({"ok": removed, "removed": removed})
+
+
+# =============================================================
+#         通用「按用户分隔」键值存储（其余本地数据的后端落点）
+# =============================================================
+@app.get("/api/userdata")
+async def api_userdata_get(userId: Optional[str] = None):
+    return JSONResponse({"ok": True, "data": userdata_mod.get_all(userId)})
+
+
+@app.put("/api/userdata")
+async def api_userdata_set(request: Request):
+    body = await request.json()
+    key = (body.get("key") or "").strip()
+    if not key:
+        return JSONResponse({"ok": False, "error": "缺少 key"}, status_code=400)
+    value = body.get("value")
+    if not isinstance(value, str):
+        value = json.dumps(value, ensure_ascii=False)
+    userdata_mod.set(body.get("userId"), key, value)
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/userdata")
+async def api_userdata_delete(userId: Optional[str] = None, key: Optional[str] = None):
+    removed = userdata_mod.delete(userId, key or "")
+    return JSONResponse({"ok": removed, "removed": removed})
+
+
 @app.post("/asr")
 async def evaluate_asr(request: Request):
     try:
@@ -635,6 +754,22 @@ async def websocket_chat(websocket: WebSocket):
                         preset_reply=fire_text,
                         crisis_mode=get_session_risk().caring_mode,
                     )
+
+                # 「我的提醒」管理页里用户维护的可重复提醒（按当前登录用户调度）
+                if current_user_id:
+                    for item in reminder_service_mod.pop_due(current_user_id):
+                        await safe_send(websocket, {
+                            "type": "reminder_service_fired",
+                            "item": item,
+                        }, send_lock)
+                        fire_text = reminder_service_mod.build_fire_text(
+                            item.get("name", ""), item.get("type", ""), current_user_name
+                        )
+                        await start_chat_task(
+                            f"[reminder_service:{item['id']}]",
+                            preset_reply=fire_text,
+                            crisis_mode=get_session_risk().caring_mode,
+                        )
         except asyncio.CancelledError:
             return
 

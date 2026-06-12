@@ -81,6 +81,10 @@ class Contact:
     def to_dict(self) -> Dict[str, Any]:
         data = asdict(self)
         data["displayName"] = self.display_name
+        # 前端字段用 emergency / createdAt / updatedAt，这里补上别名以减少前端改动
+        data["emergency"] = self.is_emergency
+        data["createdAt"] = self.created_at
+        data["updatedAt"] = self.updated_at
         return data
 
     @property
@@ -173,8 +177,7 @@ def add_contact(
     )
     if not contact.name and not contact.relation:
         raise ValueError("联系人姓名或关系至少需要填写一个")
-    if not contact.phone and not contact.wechat:
-        raise ValueError("联系人电话或微信至少需要填写一个")
+    # 电话/微信留空也允许保存（前端可只填姓名），真正拨打时再在 build_contact_action 里校验
 
     store = _load_store()
     store.setdefault(uid, []).append(asdict(contact))

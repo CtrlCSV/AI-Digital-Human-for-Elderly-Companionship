@@ -10,9 +10,9 @@ const AVATARS = [
 ];
 
 const COMPANION_CARDS = [
-  { id: 1, name: '\u5c0f\u4e3d', desc: '\u8d34\u5fc3\u5b59\u5973 \u00b7 \u6e29\u67d4\u966a\u4f34', image: 'avatar-xiaoli.png?v=3', action: '\u9009\u62e9\u5979' },
-  { id: 2, name: '\u8001\u738b', desc: '\u540c\u9f84\u8001\u53cb \u00b7 \u5520\u55d1\u8c08\u5fc3', image: 'avatar-laowang.png?v=3', action: '\u9009\u62e9\u4ed6' },
-  { id: 3, name: '\u5c0f\u660e', desc: '\u5e74\u8f7b\u4f19\u4f34 \u00b7 \u6d3b\u529b\u966a\u804a', image: 'avatar-xiaoming.png?v=3', action: '\u9009\u62e9\u4ed6' },
+  { id: 1, name: '\u5c0f\u4e3d', desc: '\u8d34\u5fc3\u5b59\u5973 \u00b7 \u6e29\u67d4\u966a\u4f34', image: '/static/avatar-xiaoli.png?v=3', action: '\u9009\u62e9\u5979' },
+  { id: 2, name: '\u8001\u738b', desc: '\u540c\u9f84\u8001\u53cb \u00b7 \u5520\u55d1\u8c08\u5fc3', image: '/static/avatar-laowang.png?v=3', action: '\u9009\u62e9\u4ed6' },
+  { id: 3, name: '\u5c0f\u660e', desc: '\u5e74\u8f7b\u4f19\u4f34 \u00b7 \u6d3b\u529b\u966a\u804a', image: '/static/avatar-xiaoming.png?v=3', action: '\u9009\u62e9\u4ed6' },
 ];
 
 const REMINDER_CATEGORIES = [
@@ -37,6 +37,121 @@ const AUTH_TOKEN_KEY = 'warm-companion-token';
 const AUTH_ACCOUNT_KEY = 'warm-companion-current-account';
 const AUTH_ACCOUNTS_KEY = 'warm-companion-accounts';
 const REMEMBER_USERNAME_KEY = 'warm-companion-remember-username';
+
+// ============================================================
+// 后端接口对接层
+//   - 联系人 → /api/contacts（contacts.py，危机告警/联系家属的数据源）
+//   - 我的提醒 → /api/reminders（reminder_service.py，后端定时让数字人播报）
+//   - 其余本地数据 → /api/userdata（通用按用户键值存储）
+//   一律「本地缓存 + 异步同步 + 登录时拉取」：后端失败时回退本地，绝不阻塞 UI。
+// ============================================================
+const SYNCED_KEY_PREFIXES = [
+  'warm-companion-family-notify-settings',
+  'warm-companion-reminder-logs',
+  'warm-companion-health-profile',
+  'warm-companion-profile-settings',
+  'warm-companion-feedback-list',
+  'warm-companion-duration-',
+  'chatbot-sessions',
+  'care-mode',
+];
+
+async function apiJson(path, options = {}) {
+  try {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+function currentUserId() {
+  return state.userId || '';
+}
+
+function shouldSyncKey(key) {
+  return SYNCED_KEY_PREFIXES.some(prefix => key === prefix || key.startsWith(prefix));
+}
+
+// 写本地，并异步把通用键镜像到后端（fire-and-forget）
+function persistLocal(key, value) {
+  try { localStorage.setItem(key, value); } catch (_) { }
+  const uid = currentUserId();
+  if (!uid || !shouldSyncKey(key)) return;
+  apiJson('/api/userdata', {
+    method: 'PUT',
+    body: JSON.stringify({ userId: uid, key, value }),
+  });
+}
+
+// 登录后从后端拉回该用户的所有同步键，覆盖到本地缓存
+async function hydrateUserDataFromBackend() {
+  const uid = currentUserId();
+  if (!uid) return;
+  const res = await apiJson('/api/userdata?userId=' + encodeURIComponent(uid));
+  if (!res || !res.ok || !res.data) return;
+  Object.entries(res.data).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      try { localStorage.setItem(key, value); } catch (_) { }
+    }
+  });
+}
+
+// 家庭联系人：从后端拉取并写入本地缓存（保持 getFamilyContacts 同步可用）
+async function hydrateFamilyContacts() {
+  const uid = currentUserId();
+  if (!uid) return;
+  const res = await apiJson('/api/contacts?userId=' + encodeURIComponent(uid));
+  if (!res || !res.ok || !Array.isArray(res.contacts)) return;
+  const mapped = res.contacts.map(c => ({
+    id: String(c.id),
+    name: c.name || '',
+    relation: c.relation || '',
+    phone: c.phone || '',
+    emergency: !!(c.emergency ?? c.is_emergency),
+    createdAt: c.createdAt || c.created_at || Date.now(),
+    updatedAt: c.updatedAt || c.updated_at || Date.now(),
+  }));
+  saveFamilyContacts(mapped);
+}
+
+// 我的提醒：从后端拉取；首次为空则把本地默认条目推上去
+async function hydrateReminderService() {
+  const uid = currentUserId();
+  if (!uid) return;
+  const res = await apiJson('/api/reminders?userId=' + encodeURIComponent(uid));
+  if (!res || !res.ok || !Array.isArray(res.items)) return;
+  if (res.items.length === 0 && reminderServiceState.items.length > 0) {
+    const bulk = await apiJson('/api/reminders/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ userId: uid, items: reminderServiceState.items }),
+    });
+    if (bulk && Array.isArray(bulk.items) && bulk.items.length) {
+      reminderServiceState.items = bulk.items;
+    }
+  } else {
+    reminderServiceState.items = res.items;
+  }
+  saveReminderServiceItems();
+}
+
+// 登录后统一拉取该用户的所有后端数据，再刷新各视图
+async function hydrateAllUserData() {
+  if (!currentUserId()) return;
+  await Promise.all([
+    hydrateUserDataFromBackend(),
+    hydrateFamilyContacts(),
+    hydrateReminderService(),
+  ]);
+  loadReminderServiceItems();
+  loadFamilyNotifySettings();
+  if (typeof renderReminderService === 'function') renderReminderService();
+  if (typeof renderFamilyNotifyPanel === 'function') renderFamilyNotifyPanel();
+}
 
 let reminderServiceState = {
   category: 'all',
@@ -204,9 +319,7 @@ function saveFamilyNotifySettings(showSavedToast = true) {
     showToast('请先登录', 'warning');
     return;
   }
-  try {
-    localStorage.setItem(key, JSON.stringify(familyNotifySettings));
-  } catch (_) { }
+  persistLocal(key, JSON.stringify(familyNotifySettings));
   if (showSavedToast) showToast('家人通知设置已保存', 'info');
 }
 
@@ -227,9 +340,7 @@ function addReminderLog(action, detail) {
     detail,
     time: new Date().toLocaleString('zh-CN', { hour12: false }),
   });
-  try {
-    localStorage.setItem(REMINDER_LOG_KEY, JSON.stringify(logs.slice(0, 50)));
-  } catch (_) { }
+  persistLocal(REMINDER_LOG_KEY, JSON.stringify(logs.slice(0, 50)));
 }
 
 function switchReminderPanel(panel) {
@@ -249,8 +360,14 @@ function switchReminderPanel(panel) {
     if (menus[key]) menus[key].classList.toggle('active', key === panel);
   });
 
-  if (panel === 'mine') renderReminderService();
-  if (panel === 'family') renderFamilyNotifyPanel();
+  if (panel === 'mine') {
+    renderReminderService();
+    hydrateReminderService().then(renderReminderService).catch(() => { });
+  }
+  if (panel === 'family') {
+    renderFamilyNotifyPanel();
+    hydrateFamilyContacts().then(renderFamilyNotifyPanel).catch(() => { });
+  }
   if (panel === 'records') renderReminderRecordPanel();
   if (window.lucide) lucide.createIcons();
 }
@@ -386,6 +503,10 @@ function toggleReminderEnabled(id) {
   saveReminderServiceItems();
   addReminderLog(item.enabled ? '开启提醒' : '关闭提醒', item.name);
   renderReminderService();
+  apiJson('/api/reminders/' + encodeURIComponent(id), {
+    method: 'PUT',
+    body: JSON.stringify({ userId: currentUserId(), enabled: item.enabled }),
+  });
 }
 
 function addReminderPlaceholder() {
@@ -409,6 +530,9 @@ function deleteReminderPlaceholder(id) {
   addReminderLog('删除提醒', item.name);
   renderReminderService();
   showToast('提醒已删除', 'info');
+  apiJson('/api/reminders/' + encodeURIComponent(id) + '?userId=' + encodeURIComponent(currentUserId()), {
+    method: 'DELETE',
+  });
 }
 
 function openReminderModal(title, item = null) {
@@ -476,6 +600,10 @@ function saveReminderFromModal() {
     closeReminderModal();
     renderReminderService();
     showToast('提醒已更新', 'info');
+    apiJson('/api/reminders/' + encodeURIComponent(editingReminderId), {
+      method: 'PUT',
+      body: JSON.stringify({ userId: currentUserId(), name, type, time, repeat, enabled: item.enabled }),
+    });
     return;
   }
 
@@ -493,6 +621,16 @@ function saveReminderFromModal() {
   closeReminderModal();
   renderReminderService();
   showToast('提醒已添加', 'info');
+  apiJson('/api/reminders', {
+    method: 'POST',
+    body: JSON.stringify({ userId: currentUserId(), type, name, time, repeat, enabled: item.enabled }),
+  }).then(res => {
+    if (res && res.ok && res.item) {
+      item.id = res.item.id;  // 用后端 id 替换本地临时 id，保证后续编辑/删除命中
+      saveReminderServiceItems();
+      renderReminderService();
+    }
+  });
 }
 
 function renderProfileCenter() {
@@ -754,7 +892,7 @@ function readJsonStorage(key, fallback) {
 }
 
 function writeJsonStorage(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  persistLocal(key, JSON.stringify(value));
 }
 
 function ensureProfileModal(id, title, bodyHtml, saveAction = '') {
@@ -857,6 +995,7 @@ function openFamilyContactsModal() {
   renderFamilyContactsList();
   resetFamilyContactForm();
   if (window.lucide) lucide.createIcons();
+  hydrateFamilyContacts().then(renderFamilyContactsList).catch(() => { });
 }
 
 function renderFamilyContactsList() {
@@ -906,7 +1045,7 @@ function editFamilyContact(id) {
   document.getElementById('familyContactsModal').dataset.editingId = id;
 }
 
-function saveFamilyContactFromForm() {
+async function saveFamilyContactFromForm() {
   if (!state.userId) {
     showToast('请先登录', 'warning');
     return;
@@ -925,26 +1064,43 @@ function saveFamilyContactFromForm() {
   }
   const modal = document.getElementById('familyContactsModal');
   const editingId = modal?.dataset.editingId || '';
-  const contacts = getFamilyContacts();
-  if (editingId) {
-    const contact = contacts.find(item => item.id === editingId);
-    if (contact) Object.assign(contact, { name, relation, phone, emergency, updatedAt: Date.now() });
+  const payload = { userId: currentUserId(), name, relation, phone, emergency };
+  const res = editingId
+    ? await apiJson('/api/contacts/' + encodeURIComponent(editingId), { method: 'PUT', body: JSON.stringify(payload) })
+    : await apiJson('/api/contacts', { method: 'POST', body: JSON.stringify(payload) });
+  if (res && res.ok) {
+    await hydrateFamilyContacts();
   } else {
-    contacts.unshift({ id: String(Date.now()), name, relation, phone, emergency, createdAt: Date.now(), updatedAt: Date.now() });
+    // 后端不可用 → 本地兜底，保证不丢数据
+    const contacts = getFamilyContacts();
+    if (editingId) {
+      const contact = contacts.find(item => item.id === editingId);
+      if (contact) Object.assign(contact, { name, relation, phone, emergency, updatedAt: Date.now() });
+    } else {
+      contacts.unshift({ id: String(Date.now()), name, relation, phone, emergency, createdAt: Date.now(), updatedAt: Date.now() });
+    }
+    saveFamilyContacts(contacts);
   }
-  saveFamilyContacts(contacts);
   renderFamilyContactsList();
   resetFamilyContactForm();
   showToast('家庭联系人已保存', 'info');
 }
 
-function deleteFamilyContact(id) {
+async function deleteFamilyContact(id) {
   if (!state.userId) {
     showToast('请先登录', 'warning');
     return;
   }
   if (!confirm('确定删除这个联系人吗？')) return;
-  saveFamilyContacts(getFamilyContacts().filter(item => item.id !== id));
+  const res = await apiJson(
+    '/api/contacts/' + encodeURIComponent(id) + '?userId=' + encodeURIComponent(currentUserId()),
+    { method: 'DELETE' }
+  );
+  if (res && res.ok) {
+    await hydrateFamilyContacts();
+  } else {
+    saveFamilyContacts(getFamilyContacts().filter(item => item.id !== id));
+  }
   renderFamilyContactsList();
   resetFamilyContactForm();
   showToast('联系人已删除', 'info');
@@ -1087,7 +1243,7 @@ function stopCompanionTimer() {
 function addTodayDuration(seconds) {
   const key = getDurationKey(new Date());
   const current = Number(localStorage.getItem(key) || '0') || 0;
-  localStorage.setItem(key, String(current + seconds));
+  persistLocal(key, String(current + seconds));
 }
 
 function getTodayDurationSeconds() {
@@ -1988,6 +2144,15 @@ const msgHandlers = {
     if (r) { r.fired = true; } else { state.reminders.push({ ...d.reminder, fired: true }); }
     renderReminders();
   },
+  reminder_service_fired(d) {
+    if (!d.item) return;
+    addReminderLog('提醒触发', d.item.name || '');
+    showToast(`⏰ 提醒：${d.item.name || ''}`, 'info');
+    const recordsPanel = document.getElementById('reminderRecordPanel');
+    if (recordsPanel && !recordsPanel.classList.contains('reminder-panel-hidden')) {
+      renderReminderRecordPanel();
+    }
+  },
   crisis_alert(d) {
     showCrisisBanner(d.hotlines || [], d.contactAction || null);
   },
@@ -2195,7 +2360,7 @@ function loadSessions() {
   catch (_) { state.sessions = []; }
 }
 
-function saveSessions() { localStorage.setItem('chatbot-sessions', JSON.stringify(state.sessions)); }
+function saveSessions() { persistLocal('chatbot-sessions', JSON.stringify(state.sessions)); }
 
 function getAvatarSessions() {
   return state.avatar ? state.sessions.filter(s => s.avatarId === state.avatar.id) : [];
@@ -2401,7 +2566,7 @@ function sendQuickPhrase(phrase) {
 function toggleCareMode() {
   document.body.classList.toggle('care-mode');
   const on = document.body.classList.contains('care-mode');
-  localStorage.setItem('care-mode', on ? 'enabled' : 'disabled');
+  persistLocal('care-mode', on ? 'enabled' : 'disabled');
   showToast(on ? '✅ 已开启关怀模式，文字更大更清晰' : '关怀模式已关闭', 'info');
 }
 
@@ -2631,11 +2796,15 @@ function _applyUser(user) {
 }
 
 function refreshUserScopedViews() {
+  // 先用本地缓存即时渲染，再异步从后端拉取最新数据并重渲染
   loadReminderServiceItems();
   loadFamilyNotifySettings();
   renderReminderService();
   renderFamilyNotifyPanel();
   renderProfileCenter();
+  hydrateAllUserData().then(() => {
+    renderProfileCenter();
+  }).catch(() => { });
 }
 
 function selectUser(userId) {
