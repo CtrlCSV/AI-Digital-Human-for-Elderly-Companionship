@@ -31,6 +31,11 @@ WEATHER_MCP_URL = os.getenv(
 )
 DEFAULT_CITY = os.getenv("DEFAULT_CITY", "北京")
 
+# modelscope 免费托管 MCP 偶发慢/掉线：实测一次成功要 ~14s，10s 超时会误杀。
+# 超时给足 + 连接失败自动重试（均可用 .env 覆盖）。
+WEATHER_MCP_TIMEOUT = float(os.getenv("WEATHER_MCP_TIMEOUT", "30"))
+WEATHER_MCP_RETRIES = int(os.getenv("WEATHER_MCP_RETRIES", "3"))
+
 NEWS_MCP_URL = os.getenv("NEWS_MCP_URL", "")  # 可选：设置后优先走 MCP，否则走 RSS
 
 # RSS 源列表（按优先级排序，均无需 API Key）
@@ -284,46 +289,62 @@ async def get_weather(city: Optional[str] = None) -> Dict[str, Any]:
     city = (city or DEFAULT_CITY).strip()
     print(f"[MCP weather] 请求 city='{city}'")
 
-    try:
-        if _weather_tools_cache is None:
-            try:
+    last_err = None
+    for attempt in range(1, WEATHER_MCP_RETRIES + 1):
+        try:
+            # 1) 列工具（远端较慢，给足超时；成功后缓存，后续查询跳过这步）
+            if _weather_tools_cache is None:
                 _weather_tools_cache = await asyncio.wait_for(
-                    _list_tools_sse(WEATHER_MCP_URL), timeout=10
+                    _list_tools_sse(WEATHER_MCP_URL), timeout=WEATHER_MCP_TIMEOUT
                 )
                 print(f"[MCP weather] 可用工具: {_weather_tools_cache}")
-            except Exception as e:
-                traceback.print_exc()
-                return {"ok": False, "error": f"无法连接天气 MCP（{type(e).__name__}: {e}）"}
 
-        if not _weather_tools_cache:
-            return {"ok": False, "error": "天气 MCP 没有可用工具"}
+            if not _weather_tools_cache:
+                return {"ok": False, "error": "天气 MCP 没有可用工具"}
 
-        tool = next(
-            (n for n in _weather_tools_cache if "weather" in n.lower() or "天气" in n),
-            _weather_tools_cache[0],
-        )
+            tool = next(
+                (n for n in _weather_tools_cache if "weather" in n.lower() or "天气" in n),
+                _weather_tools_cache[0],
+            )
 
-        last_err = None
-        for arg_key in ("city", "location", "city_name", "place", "query"):
-            try:
-                result = await _call_sse(WEATHER_MCP_URL, tool, {arg_key: city})
+            # 2) 逐个尝试参数名。connected=True 表示至少连上过一次服务端，
+            #    只是内容为空/不对——这是数据问题，不该外层重连。
+            connected = False
+            arg_err = None
+            for arg_key in ("city", "location", "city_name", "place", "query"):
+                try:
+                    result = await _call_sse(
+                        WEATHER_MCP_URL, tool, {arg_key: city}, timeout=WEATHER_MCP_TIMEOUT
+                    )
+                except Exception as e:
+                    arg_err = e  # 可能是参数名不对，也可能是网络抖动——试下一个
+                    print(f"[MCP weather] arg={arg_key} 失败: {type(e).__name__}: {e}")
+                    continue
+                connected = True
                 text = _extract_text(result)
                 if not text:
                     continue
                 if _looks_like_error(text):
-                    last_err = text[:200]
+                    arg_err = text[:200]
                     continue
                 return _parse_weather_text(text, city)
-            except Exception as e:
-                last_err = e
-                print(f"[MCP weather] arg={arg_key} 失败: {type(e).__name__}: {e}")
-        return {"ok": False, "error": f"天气服务返回异常：{last_err}"}
 
-    except asyncio.TimeoutError:
-        return {"ok": False, "error": "天气 MCP 超时"}
-    except Exception as e:
-        traceback.print_exc()
-        return {"ok": False, "error": f"天气 MCP 异常：{type(e).__name__}: {e}"}
+            if connected:
+                # 连上了但每个参数名都拿不到有效数据：数据问题，不重试
+                return {"ok": False, "error": f"天气服务返回异常：{arg_err}"}
+            # 一个参数名都没连上 → 判定为网络抖动 → 抛出触发外层重试
+            raise arg_err if isinstance(arg_err, BaseException) else RuntimeError(str(arg_err))
+
+        except Exception as e:
+            last_err = e
+            _weather_tools_cache = None  # 连接失败：清缓存，下次重连重新列工具
+            print(f"[MCP weather] 第{attempt}/{WEATHER_MCP_RETRIES}次失败: "
+                  f"{type(e).__name__}: {e}")
+
+        if attempt < WEATHER_MCP_RETRIES:
+            await asyncio.sleep(0.8 * attempt)  # 轻微退避后重试
+
+    return {"ok": False, "error": f"天气 MCP 多次连接失败：{type(last_err).__name__}: {last_err}"}
 
 
 def _parse_weather_text(text: str, fallback_city: str) -> Dict[str, Any]:
