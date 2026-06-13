@@ -8,22 +8,21 @@ import chromadb
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-load_dotenv()
-
 from tools import detect_tool, call_tool
 from user_profile import build_profile_context, set_preferred_name
 from crisis import CRISIS_HOTLINES
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_HERE, ".env"))
 
 API_KEY = os.environ.get("API_KEY", "")
 _LLM_API_URL = os.environ.get("LLM_API_URL", "https://api.siliconflow.cn/v1/chat/completions")
 _LLM_MODEL = os.environ.get("LLM_MODEL", "Pro/Qwen/Qwen2.5-7B-Instruct")
 _EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
-_VECTOR_DB_PATH = os.environ.get(
+_VECTOR_DB_PATH = os.path.abspath(os.path.expanduser(os.path.expandvars(os.environ.get(
     "VECTOR_DB_PATH",
     os.path.join(_HERE, "vector_db"),
-)
+))))
 _ALLOW_REMOTE_EMBED_MODEL = os.environ.get("ALLOW_REMOTE_EMBED_MODEL", "0") == "1"
 
 MEMORY_FILE = Path(__file__).resolve().parent / "session_memory.json"
@@ -44,12 +43,16 @@ if embedder is None:
     soulchat_collection = None
     print("[RAG] 未找到本地 bge-small-zh-v1.5，跳过知识库检索。")
 else:
-    chroma_client = chromadb.PersistentClient(path=_VECTOR_DB_PATH)
+    try:
+        chroma_client = chromadb.PersistentClient(path=_VECTOR_DB_PATH)
+    except Exception as e:
+        chroma_client = None
+        print(f"[RAG] ChromaDB 加载失败，已降级为无检索模式: {e}")
     try:
         psy_collection = chroma_client.get_collection(name="psy_cbt_knowledge")
         print(f"[RAG] 知识库已加载，共 {psy_collection.count()} 条数据")
     except Exception:
-        psy_collection = chroma_client.get_or_create_collection(name="psy_cbt_knowledge")
+        psy_collection = None
         print("[RAG] 知识库为空，RAG 功能不可用。请先运行 build_kb.py 导入数据。")
 
     try:

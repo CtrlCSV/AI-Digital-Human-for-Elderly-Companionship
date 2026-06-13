@@ -224,11 +224,18 @@ async def send_stop_output(websocket: WebSocket, response_id: int, reason="barge
 
 async def synthesize_pipeline(clean_text: str, role: str, avatar_id, dialect: str = "mandarin", emotion: str = "neutral") -> tuple:
     """整句合成：TTS → FlashHead，返回 (audio_bytes, video_mp4)。"""
+    print(f"[SYNTH] TTS start, chars={len(clean_text)}, role={role}, dialect={dialect}")
     audio_bytes = await tts_engine.generate_audio_bytes(clean_text, role=role, dialect=dialect)
+    print(f"[SYNTH] TTS done, audio={len(audio_bytes)} bytes; FlashHead start")
     loop = asyncio.get_running_loop()
-    video_mp4 = await loop.run_in_executor(
+    video_future = loop.run_in_executor(
         None, flashhead_adapter.audio_to_video_mp4, audio_bytes, avatar_id, emotion
     )
+    video_mp4 = await video_future
+    if video_mp4:
+        print(f"[SYNTH] FlashHead done, video={len(video_mp4)} bytes")
+    else:
+        print("[SYNTH] FlashHead returned no video; audio fallback")
     return audio_bytes, video_mp4
 
 

@@ -19,6 +19,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import wave
 from collections import deque
 from pathlib import Path
@@ -109,7 +110,30 @@ _EMOTION_ALIASES = {
 _pipeline = None
 _infer_params = None
 _available = None
-_current_avatar_id = None_available = None  # None=not checked, True/False=check result
+_current_avatar_id = None
+
+
+def _disable_torch_compile_for_flashhead() -> None:
+    """Force FlashHead to run in eager mode when Triton/inductor is unavailable."""
+    if os.environ.get("FLASHHEAD_DISABLE_TORCH_COMPILE", "1").lower() in {"0", "false", "no"}:
+        return
+    try:
+        import torch
+
+        try:
+            import torch._dynamo
+            torch._dynamo.config.suppress_errors = True
+        except Exception:
+            pass
+
+        if getattr(torch.compile, "__name__", "") != "_flashhead_eager_compile":
+            def _flashhead_eager_compile(model=None, *args, **kwargs):
+                return model
+
+            torch.compile = _flashhead_eager_compile
+            print("[FlashHead] torch.compile disabled; using eager mode.")
+    except Exception as e:
+        print(f"[FlashHead] Failed to disable torch.compile: {e}")
 
 
 def _check_available() -> bool:
@@ -154,7 +178,15 @@ def _load_pipeline():
             if mod_name == "flash_head" or mod_name.startswith("flash_head."):
                 del _sys.modules[mod_name]
 
+        _disable_torch_compile_for_flashhead()
         from flash_head.inference import get_pipeline, get_infer_params
+        try:
+            from flash_head.src.pipeline import flash_head_pipeline
+            flash_head_pipeline.COMPILE_MODEL = False
+            flash_head_pipeline.COMPILE_VAE = False
+        except Exception as e:
+            print(f"[FlashHead] Could not disable compile flags: {e}")
+
         print(f"[FlashHead] Loading pipeline: ckpt={FLASHHEAD_CKPT_DIR}, wav2vec={FLASHHEAD_WAV2VEC_DIR}, type={FLASHHEAD_MODEL_TYPE}")
         _pipeline = get_pipeline(
             world_size=1,
@@ -191,13 +223,13 @@ def _portrait_for_emotion(avatar_id: int, emotion: str | None) -> tuple[str, str
     if neutral_candidate.is_file():
         return str(neutral_candidate), "neutral"
     return str(base), "neutral"
-def _setup_avatar(avatar_id: int, emotion: str | None = None):
+def _setup_avatar(avatar_id: int, emotion: str | None = None) -> bool:
     """Set the condition image for the selected avatar and emotion portrait."""
     global _current_avatar_id
     portrait_path, emotion_key = _portrait_for_emotion(avatar_id, emotion)
     cache_key = (avatar_id, emotion_key, portrait_path)
     if _current_avatar_id == cache_key:
-        return
+        return True
 
     if not os.path.isfile(portrait_path):
         print(f"[FlashHead] Portrait does not exist: {portrait_path}; using avatar 1 default.")
@@ -213,8 +245,11 @@ def _setup_avatar(avatar_id: int, emotion: str | None = None):
         )
         _current_avatar_id = cache_key
         print(f"[FlashHead] Avatar {avatar_id} portrait set: {portrait_path} (emotion={emotion_key})")
+        return True
     except Exception as e:
+        _current_avatar_id = None
         print(f"[FlashHead] Failed to set avatar portrait: {e}")
+        return False
 
 
 def _mp3_bytes_to_wav_file(audio_bytes: bytes, tmp_wav_path: str):
@@ -255,6 +290,9 @@ def _run_inference(audio_array: np.ndarray) -> list:
     import torch
     from flash_head.inference import get_audio_embedding, run_pipeline
 
+    if not hasattr(_pipeline, "latent_motion_frames"):
+        raise RuntimeError("FlashHead avatar portrait is not initialized.")
+
     params = _infer_params
     sample_rate = params["sample_rate"]
     tgt_fps = params["tgt_fps"]
@@ -283,13 +321,18 @@ def _run_inference(audio_array: np.ndarray) -> list:
 
     audio_dq = deque([0.0] * cached_len, maxlen=cached_len)
 
+    total_chunks = len(slices)
+    print(f"[FlashHead] Inference start: chunks={total_chunks}, slice_samples={human_speech_array_slice_len}")
     for chunk_idx, chunk in enumerate(slices):
+        chunk_start = time.time()
+        print(f"[FlashHead] Running chunk {chunk_idx + 1}/{total_chunks}")
         audio_dq.extend(chunk.tolist())
         audio_arr = np.array(audio_dq)
         emb = get_audio_embedding(_pipeline, audio_arr, audio_start_idx, audio_end_idx)
         video = run_pipeline(_pipeline, emb)
         video = video[motion_frames_num:]  # Drop repeated motion frames.
         generated.append(video.cpu())
+        print(f"[FlashHead] Chunk {chunk_idx + 1}/{total_chunks} done in {time.time() - chunk_start:.1f}s")
 
     return generated
 
@@ -320,6 +363,7 @@ def _frames_to_mp4_bytes(frames_list: list, wav_path: str) -> bytes:
                 frames_np = frames.numpy().astype(np.uint8)
                 for i in range(frames_np.shape[0]):
                     writer.append_data(frames_np[i])
+        print("[FlashHead] Frames encoded, muxing audio with ffmpeg")
 
         cmd = [
             ffmpeg_exe, "-y",
@@ -447,12 +491,14 @@ def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int, emotion: str | None =
                 sample_rate = _infer_params.get("sample_rate", 16000) if _infer_params else 16000
                 audio_array, _ = librosa.load(tmp_wav.name, sr=sample_rate, mono=True)
 
-                _setup_avatar(avatar_id, emotion)
+                if not _setup_avatar(avatar_id, emotion):
+                    return None
                 frames = _run_inference(audio_array)
 
                 if not frames:
                     return None
 
+                print("[FlashHead] Encoding MP4")
                 return _frames_to_mp4_bytes(frames, tmp_wav.name)
 
             except Exception as e:

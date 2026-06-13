@@ -153,6 +153,13 @@ def resolve_config_path(env_name: str, default_path: Path) -> Path:
     return default_path.resolve()
 
 
+def resolve_vector_db_path() -> Path:
+    raw = (os.environ.get("VECTOR_DB_PATH") or "").strip()
+    if not raw:
+        return (ROOT / "vector_db").resolve()
+    return Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+
+
 def download_hf_snapshot(repo_id: str, target_dir: Path) -> None:
     from huggingface_hub import snapshot_download
 
@@ -180,6 +187,14 @@ def backup_broken_vector_db(reason: str) -> bool:
         return False
 
 
+def warn_vector_db_unavailable(reason: str | None) -> None:
+    warn("vector_db 当前无法被 ChromaDB 打开，初始化已停止，避免误删或覆盖已有向量库。")
+    if reason:
+        warn(f"ChromaDB 错误: {reason}")
+    warn("请先关闭正在运行的 server.py、build_kb.py、Python 解释器，以及可能占用 demo/vector_db 的编辑器后重试。")
+    warn("如果确认要丢弃当前损坏库并重建，请运行: python init_project.py --rebuild-vector-db")
+
+
 def ensure_env() -> bool:
     if ENV_FILE.exists():
         ok("找到 .env")
@@ -195,6 +210,7 @@ def ensure_python_packages() -> bool:
         "funasr": "funasr",
         "modelscope": "modelscope",
         "huggingface_hub": "huggingface_hub",
+        "loguru": "loguru",
         "torch": "torch",
         "fastapi": "fastapi",
         "uvicorn": "uvicorn",
@@ -336,9 +352,8 @@ def ensure_psyqa_knowledge(force: bool) -> bool:
         return True
 
     if count is None and VECTOR_DB.exists():
-        if not backup_broken_vector_db(chroma_error or "unknown error"):
-            warn("ChromaDB 当前不可用，且自动备份失败，无法继续构建 PsyQA 知识库。")
-            return False
+        warn_vector_db_unavailable(chroma_error or "unknown error")
+        return False
 
     run_script("build_kb.py")
     count, _ = chroma_collection_count("psy_cbt_knowledge")
@@ -365,9 +380,8 @@ def ensure_soulchat_knowledge(force: bool, allow_download: bool) -> bool:
         return True
 
     if count is None and VECTOR_DB.exists():
-        if not backup_broken_vector_db(chroma_error or "unknown error"):
-            warn("ChromaDB 当前不可用，且自动备份失败，无法继续构建 SoulChat 知识库。")
-            return False
+        warn_vector_db_unavailable(chroma_error or "unknown error")
+        return False
 
     run_script("build_kb_soulchat.py")
     count, _ = chroma_collection_count("soulchat_knowledge")
@@ -412,14 +426,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--download", action="store_true", help="兼容旧命令；必需模型和数据会自动准备")
     parser.add_argument("--with-optional", action="store_true", help="兼容旧命令；危机分类器现在是必需项，此参数不再改变初始化行为")
     parser.add_argument("--force", action="store_true", help="即使输出已存在也重新运行构建脚本")
+    parser.add_argument("--rebuild-vector-db", action="store_true", help="先备份当前 vector_db，再重新构建知识库")
     return parser.parse_args()
 
 
 def main() -> int:
+    global VECTOR_DB
     args = parse_args()
     os.chdir(ROOT)
     load_env_file()
     os.environ.setdefault("HF_ENDPOINT", "https://huggingface.co")
+    VECTOR_DB = resolve_vector_db_path()
+    log(f"向量库路径: {VECTOR_DB}")
+
+    if args.rebuild_vector_db and VECTOR_DB.exists():
+        if not backup_broken_vector_db("user requested rebuild"):
+            return 1
 
     env_ok = ensure_env()
     deps_ok = ensure_python_packages()

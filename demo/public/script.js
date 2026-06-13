@@ -214,6 +214,7 @@ const state = {
   avatar: null, sessionId: null, sessions: [], userName: '',
   userId: '',
   ws: null, wsConnected: false, reconnects: 0,
+  wsManualClose: false, returnPageAfterUtility: '',
   recording: false, recognition: null,
   responseId: null, botChunks: [],
   currentChunkEl: null,
@@ -1456,9 +1457,29 @@ function clearCurrentAuthUser() {
   refreshUserScopedViews();
 }
 
-function confirmLogout() {
+function isChatPageActive() {
+  return !!document.getElementById('chatPage')?.classList.contains('active');
+}
+
+function closeWebSocketSilently() {
+  const socket = state.ws;
+  state.wsManualClose = true;
+  state.reconnects = MAX_RECONNECT;
+  state.ws = null;
+  state.wsConnected = false;
+  if (!socket) return;
+  try {
+    socket.onopen = null;
+    socket.onmessage = null;
+    socket.onerror = null;
+    socket.onclose = null;
+    socket.close();
+  } catch (_) { }
+}
+
+function cleanupChatState(clearMessages = true) {
   stopCompanionTimer();
-  if (state.ws) state.ws.close();
+  closeWebSocketSilently();
   Camera.stop();
   AudioPlayer.reset();
   VideoPlayer.reset();
@@ -1466,7 +1487,47 @@ function confirmLogout() {
   destroyAvatarArea();
   state.avatar = null;
   state.sessionId = null;
-  if (dom.messagesContainer) dom.messagesContainer.innerHTML = '';
+  state.returnPageAfterUtility = '';
+  if (clearMessages && dom.messagesContainer) dom.messagesContainer.innerHTML = '';
+}
+
+function pauseChatForUtilityPage() {
+  stopCompanionTimer();
+  Camera.stop();
+  AudioPlayer.reset();
+  VideoPlayer.reset();
+  resetBotBubbleState();
+}
+
+function restoreChatFromUtilityPage() {
+  if (state.returnPageAfterUtility !== 'chatPage' || !state.avatar) return false;
+  const container = document.getElementById('digitalHumanArea');
+  if (container && !container.querySelector('.avatar-poster')) {
+    initAvatarVideoArea(state.avatar);
+    tryLoadIdleVideo(state.avatar.id);
+  }
+  setPageActive('chatPage');
+  updateTimeGreeting();
+  renderSessionList();
+  if (state.sessionId) loadSessionMessages(state.sessionId);
+  const socketClosed = !state.ws || state.ws.readyState === WebSocket.CLOSED || state.ws.readyState === WebSocket.CLOSING;
+  if (socketClosed) connectWebSocket();
+  const profileSettings = getProfileSettings();
+  if (profileSettings.autoCamera !== false) Camera.init();
+  else syncCallControls();
+  setStatus(STATUS.online);
+  startCompanionTimer();
+  if (dom.messageInput) dom.messageInput.focus();
+  state.returnPageAfterUtility = '';
+  return true;
+}
+
+function returnFromUtilityPage() {
+  if (!restoreChatFromUtilityPage()) showHomePage();
+}
+
+function confirmLogout() {
+  cleanupChatState(true);
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_ACCOUNT_KEY);
   clearCurrentAuthUser();
@@ -1476,52 +1537,27 @@ function confirmLogout() {
 }
 
 function showHomePage() {
-  stopCompanionTimer();
-  if (state.avatar) {
-    if (state.ws) state.ws.close();
-    Camera.stop();
-    AudioPlayer.reset();
-    VideoPlayer.reset();
-    resetBotBubbleState();
-    destroyAvatarArea();
-  }
-  state.avatar = null;
-  state.sessionId = null;
-  if (dom.messagesContainer) dom.messagesContainer.innerHTML = '';
+  if (state.avatar) cleanupChatState(true);
   setPageActive('selectPage');
   updateTimeGreeting();
   updateSelectUserPanel();
 }
 
 function showReminderService() {
-  stopCompanionTimer();
-  if (state.avatar) {
-    if (state.ws) state.ws.close();
-    Camera.stop();
-    AudioPlayer.reset();
-    VideoPlayer.reset();
-    resetBotBubbleState();
-    destroyAvatarArea();
+  if (state.avatar && (isChatPageActive() || state.returnPageAfterUtility === 'chatPage')) {
+    state.returnPageAfterUtility = 'chatPage';
+    pauseChatForUtilityPage();
   }
-  state.avatar = null;
-  state.sessionId = null;
   setPageActive('reminderPage');
   switchReminderPanel('mine');
   updateTimeGreeting();
 }
 
 function showProfileCenter() {
-  stopCompanionTimer();
-  if (state.avatar) {
-    if (state.ws) state.ws.close();
-    Camera.stop();
-    AudioPlayer.reset();
-    VideoPlayer.reset();
-    resetBotBubbleState();
-    destroyAvatarArea();
+  if (state.avatar && (isChatPageActive() || state.returnPageAfterUtility === 'chatPage')) {
+    state.returnPageAfterUtility = 'chatPage';
+    pauseChatForUtilityPage();
   }
-  state.avatar = null;
-  state.sessionId = null;
   setPageActive('profilePage');
   renderProfileCenter();
   updateTimeGreeting();
@@ -1904,59 +1940,6 @@ const VideoPlayer = {
   },
 };
 
-// ---------------------- 自定义数字人形象 ----------------------
-let _pendingCustomFile = null;
-
-function handleAvatarUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  _pendingCustomFile = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const preview = document.getElementById('uploadPreview');
-    const img = document.getElementById('uploadPreviewImg');
-    img.src = e.target.result;
-    preview.style.display = 'flex';
-  };
-  reader.readAsDataURL(file);
-}
-
-async function selectCustomAvatar() {
-  if (!_pendingCustomFile) return;
-  const formData = new FormData();
-  formData.append('file', _pendingCustomFile);
-  formData.append('slot', 0);
-  try {
-    const resp = await fetch('/api/avatar/upload', { method: 'POST', body: formData });
-    const data = await resp.json();
-    if (resp.ok) {
-      const customAvatar = {
-        id: 99,
-        name: '自定义',
-        desc: '您上传的数字人形象',
-        skinClass: 'avatar-custom',
-        welcome: '你好，我是您自定义的数字人！',
-        imagePath: data.url,
-      };
-      AVATARS[99] = customAvatar;
-      cancelUpload();
-      selectAvatar(99);
-
-    } else {
-      showToast(`上传失败: ${data.error}`, 'error');
-    }
-  } catch (e) {
-    showToast(`上传失败: ${e.message}`, 'error');
-  }
-}
-
-function cancelUpload() {
-  document.getElementById('uploadPreview').style.display = 'none';
-  document.getElementById('avatarUploadInput').value = '';
-  _pendingCustomFile = null;
-}
-
-
 // ---------------------- 待机视频加载 ----------------------
 async function tryLoadIdleVideo(avatarId) {
   const roleMap = { 1: 'girl', 2: 'elderly', 3: 'boy', 99: 'custom' };
@@ -2225,10 +2208,14 @@ function showCrisisBanner(hotlines, contactAction = null) {
 }
 
 function connectWebSocket() {
+  if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return;
+  state.wsManualClose = false;
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  state.ws = new WebSocket(`${protocol}//${location.host}/ws/chat`);
+  const socket = new WebSocket(`${protocol}//${location.host}/ws/chat`);
+  state.ws = socket;
 
-  state.ws.onopen = () => {
+  socket.onopen = () => {
+    if (state.ws !== socket) return;
     state.wsConnected = true;
     state.reconnects = 0;
     setStatus(STATUS.online);
@@ -2236,12 +2223,23 @@ function connectWebSocket() {
       wsSend({ type: 'init', avatarId: state.avatar.id, avatarName: state.avatar.name, sessionId: state.sessionId, userName: state.userName, userId: state.userId, dialect: state.dialect, city: localStorage.getItem('warm-companion-city') || '' });
     }
   };
-  state.ws.onmessage = (e) => {
+  socket.onmessage = (e) => {
+    if (state.ws !== socket) return;
     try { handleServerMessage(JSON.parse(e.data)); } catch (_) { showToast('服务器消息解析失败', 'warning'); }
   };
-  state.ws.onerror = () => { state.wsConnected = false; setStatus(STATUS.offlineD); };
-  state.ws.onclose = () => {
+  socket.onerror = () => {
+    if (state.ws !== socket || state.wsManualClose) return;
     state.wsConnected = false;
+    setStatus(STATUS.offlineD);
+  };
+  socket.onclose = () => {
+    if (state.ws !== socket) return;
+    state.wsConnected = false;
+    state.ws = null;
+    if (state.wsManualClose || !state.avatar) {
+      state.wsManualClose = false;
+      return;
+    }
     setStatus(STATUS.offline);
     if (state.reconnects < MAX_RECONNECT) {
       state.reconnects++;
@@ -2904,36 +2902,45 @@ function createRecognitionInstance() {
 function stopVoiceUI() {
   state.recording = false;
   const btn = document.getElementById('centerVoiceBtn');
-  if (btn) btn.classList.remove('recording');
+  if (btn) {
+    btn.classList.remove('recording', 'pressing');
+    btn.innerHTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">点一下说话</span></div>`;
+  }
 }
 
 function startVoiceRecording() {
-  state.pressTimer = setTimeout(() => {
-    state.isLongPress = true;
-    const btn = document.getElementById('centerVoiceBtn');
-    if (btn) { btn.classList.add('recording'); btn.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">松开发送</span>'; }
-    if (!_SRConstructor) { showToast('您的浏览器不支持语音识别功能', 'warning'); return; }
-    state.recognition = createRecognitionInstance();
-    try { state.recognition.start(); } catch (_) { showToast('语音识别暂时不可用', 'warning'); }
-  }, 300);
+  if (state.recording) return;
   const btn = document.getElementById('centerVoiceBtn');
-  if (btn) btn.classList.add('pressing');
+  if (btn) {
+    btn.classList.add('recording');
+    btn.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">再点一下发送</span>';
+  }
+  if (!_SRConstructor) {
+    showToast('您的浏览器不支持语音识别功能', 'warning');
+    stopVoiceUI();
+    return;
+  }
+  state.recognition = createRecognitionInstance();
+  try {
+    state.recognition.start();
+  } catch (_) {
+    showToast('语音识别暂时不可用', 'warning');
+    stopVoiceUI();
+  }
 }
 
 function stopVoiceRecording() {
   clearTimeout(state.pressTimer);
   const btn = document.getElementById('centerVoiceBtn');
   if (btn) btn.classList.remove('pressing');
-  if (state.isLongPress) {
-    state.isLongPress = false;
-    if (btn) {
-      btn.classList.remove('recording');
-      btn.innerHTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">按住 说话</span></div>`;
-    }
-    if (state.recognition) { try { state.recognition.stop(); } catch (_) { stopVoiceUI(); } }
-  } else {
-    showToast('💡 长按按钮可以语音输入哦', 'info');
-  }
+  state.isLongPress = false;
+  if (state.recognition) { try { state.recognition.stop(); } catch (_) { stopVoiceUI(); } }
+  else stopVoiceUI();
+}
+
+function toggleVoiceRecording() {
+  if (state.recording) stopVoiceRecording();
+  else startVoiceRecording();
 }
 
 // ---------------------- Page Navigation ----------------------
@@ -2945,6 +2952,7 @@ async function selectAvatar(id) {
     return;
   }
   state.avatar = AVATARS[id];
+  state.returnPageAfterUtility = '';
   dom.botName.textContent = state.avatar.name;
   dom.botDesc.textContent = state.avatar.desc;
 
@@ -2967,6 +2975,14 @@ async function selectAvatar(id) {
     badgeAvatar.style.backgroundPosition = 'center';
     badgeAvatar.textContent = '';
   }
+  const leftAvatar = document.getElementById('botLeftAvatar');
+  if (leftAvatar && state.avatar.imagePath) {
+    leftAvatar.style.backgroundImage = `url('${state.avatar.imagePath}')`;
+  }
+  const leftName = document.getElementById('botLeftName');
+  if (leftName) leftName.textContent = state.avatar.name || '';
+  const leftDesc = document.getElementById('botLeftDesc');
+  if (leftDesc) leftDesc.textContent = state.avatar.desc || '';
 
   destroyAvatarArea();
   initAvatarVideoArea(state.avatar);
@@ -2998,18 +3014,8 @@ async function selectAvatar(id) {
 }
 
 function goBack() {
-  stopCompanionTimer();
-  state.reconnects = MAX_RECONNECT;
-  if (state.ws) state.ws.close();
-  VideoPlayer.reset();
-  AudioPlayer.reset();
-  resetBotBubbleState();
-  Camera.stop();
+  cleanupChatState(true);
   setPageActive('selectPage');
-  destroyAvatarArea();
-  state.avatar = null;
-  state.sessionId = null;
-  dom.messagesContainer.innerHTML = '';
   renderSelectPageUserBar();
   updateSelectUserPanel();
 }
@@ -3053,6 +3059,7 @@ window.confirmLogout = confirmLogout;
 window.showHomePage = showHomePage;
 window.showReminderService = showReminderService;
 window.showProfileCenter = showProfileCenter;
+window.returnFromUtilityPage = returnFromUtilityPage;
 window.goBack = goBack;
 window.newConversation = newConversation;
 window.sendQuickPhrase = sendQuickPhrase;
@@ -3092,9 +3099,7 @@ window.closeFeedbackModal = closeFeedbackModal;
 window.saveUserName = saveUserName;
 window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;
-window.handleAvatarUpload = handleAvatarUpload;
-window.selectCustomAvatar = selectCustomAvatar;
-window.cancelUpload = cancelUpload;
+window.toggleVoiceRecording = toggleVoiceRecording;
 window.showUserModal = showUserModal;
 window.hideUserModal = hideUserModal;
 window.confirmNewUser = confirmNewUser;

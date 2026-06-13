@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=13">
+  <link rel="stylesheet" href="/static/styles.css?v=18">
   <script>
     tailwind.config = {
       theme: {
@@ -569,7 +569,6 @@
 
         <nav class="select-nav-links" aria-label="主导航">
           <a class="active" href="javascript:void(0)" onclick="showHomePage()">首页</a>
-          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
           <a href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
           <a href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
         </nav>
@@ -593,24 +592,6 @@
 
         <section id="companionCards" class="companion-card-grid" aria-label="陪伴对象"></section>
 
-        <section class="select-upload-section">
-          <label class="upload-dashed-card" for="avatarUploadInput">
-            <span class="upload-icon-wrap">
-              <i data-lucide="camera" style="width:28px;height:28px"></i>
-            </span>
-            <span class="upload-title">上传我的形象</span>
-            <span class="upload-subtitle">让 AI 更懂您</span>
-            <input type="file" id="avatarUploadInput" accept="image/png,image/jpeg,image/webp" style="display:none"
-              onchange="handleAvatarUpload(this)">
-          </label>
-          <div id="uploadPreview" class="upload-preview" style="display:none">
-            <img id="uploadPreviewImg" src="" alt="预览">
-            <div class="upload-preview-actions">
-              <button class="select-btn" onclick="selectCustomAvatar()">使用此形象</button>
-              <button class="cancel-btn" onclick="cancelUpload()">取消</button>
-            </div>
-          </div>
-        </section>
       </main>
     </div>
   </div>
@@ -630,7 +611,6 @@
 
         <nav class="select-nav-links" aria-label="主导航">
           <a href="javascript:void(0)" onclick="showHomePage()">首页</a>
-          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
           <a class="active" href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
           <a href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
         </nav>
@@ -639,7 +619,7 @@
           <div class="greeting-pill">
             <span id="reminderTimeGreeting">晚上</span><span></span><span id="reminderUserDisplayName">朋友</span>
           </div>
-          <button type="button" onclick="showHomePage()" class="nav-exit-btn">
+          <button type="button" onclick="returnFromUtilityPage()" class="nav-exit-btn">
             <i data-lucide="log-out" style="width:18px;height:18px"></i>
             <span>返回</span>
           </button>
@@ -779,7 +759,6 @@
 
         <nav class="select-nav-links" aria-label="主导航">
           <a href="javascript:void(0)" onclick="showHomePage()">首页</a>
-          <a href="javascript:void(0)" onclick="showHomePage()">陪伴聊天</a>
           <a href="javascript:void(0)" onclick="showReminderService()">提醒服务</a>
           <a class="active" href="javascript:void(0)" onclick="showProfileCenter()">个人中心</a>
         </nav>
@@ -788,7 +767,7 @@
           <div class="greeting-pill">
             <span id="profileTimeGreeting">晚上</span><span></span><span id="profileUserDisplayName">朋友</span>
           </div>
-          <button type="button" onclick="showHomePage()" class="nav-exit-btn">
+          <button type="button" onclick="returnFromUtilityPage()" class="nav-exit-btn">
             <i data-lucide="log-out" style="width:18px;height:18px"></i>
             <span>返回</span>
           </button>
@@ -935,7 +914,7 @@
     onclick="if(event.target===this) closeProfileFeatureModal('feedbackModal')">
     <div class="profile-feature-card">
       <div class="profile-modal-head">
-        <h2>帮助与反</h2>
+        <h2>帮助与反馈</h2>
         <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('feedbackModal')"
           aria-label="关闭">
           <i data-lucide="x" style="width:22px;height:22px"></i>
@@ -1007,6 +986,46 @@
       </header>
 
       <main class="companion-layout">
+        <aside class="chat-left-panel">
+          <button onclick="goBack()" class="left-back-btn">
+            <i data-lucide="arrow-left" style="width:18px;height:18px"></i>
+            <span>返回选择</span>
+          </button>
+
+          <section class="left-companion-card">
+            <div id="botLeftAvatar" class="left-companion-avatar"></div>
+            <h2 id="botLeftName">小丽</h2>
+            <p id="botLeftDesc">温柔可爱，陪你聊天～</p>
+          </section>
+
+          <section class="left-shortcuts">
+            <button type="button" onclick="toggleCareMode()">
+              <i data-lucide="eye" style="width:18px;height:18px"></i>
+              <span>关怀模式</span>
+            </button>
+            <button type="button" onclick="sendQuickPhrase('帮我查询一下今天的新闻')">
+              <i data-lucide="newspaper" style="width:18px;height:18px"></i>
+              <span>查询新闻</span>
+            </button>
+            <button type="button" onclick="showReminderService()">
+              <i data-lucide="bell-plus" style="width:18px;height:18px"></i>
+              <span>提醒服务</span>
+            </button>
+            <button type="button" onclick="sendQuickPhrase('帮我看看今天的天气')">
+              <i data-lucide="cloud-sun" style="width:18px;height:18px"></i>
+              <span>天气查询</span>
+            </button>
+            <button type="button" onclick="sendQuickPhrase('给我讲个轻松的笑话')">
+              <i data-lucide="smile" style="width:18px;height:18px"></i>
+              <span>讲笑话</span>
+            </button>
+            <button type="button" onclick="sendQuickPhrase('给我讲一个温暖的小故事')">
+              <i data-lucide="book-open" style="width:18px;height:18px"></i>
+              <span>听故事</span>
+            </button>
+          </section>
+        </aside>
+
         <section class="main-chat-panel">
           <div class="video-call-card">
             <div class="living-room-bg" aria-hidden="true"></div>
@@ -1030,12 +1049,6 @@
               <div class="self-camera-label"></div>
             </div>
 
-            <div class="video-message-strip chat-history-area nice-scroll">
-              <div id="messagesContainer" class="video-message-list">
-                <div class="message message-bot">晚上好！今天过得怎么样呀？</div>
-              </div>
-            </div>
-
             <div class="call-controls" aria-label="通话控制">
               <button id="audioMuteBtn" type="button" onclick="toggleCallControl('mute')" title="静音">
                 <i data-lucide="volume-2" style="width:22px;height:22px"></i>
@@ -1057,16 +1070,14 @@
           </div>
 
           <div class="bottom-composer">
-            <button id="centerVoiceBtn" type="button" onmousedown="startVoiceRecording()"
-              onmouseup="stopVoiceRecording()" onmouseleave="stopVoiceRecording()" ontouchstart="startVoiceRecording()"
-              ontouchend="stopVoiceRecording()" ontouchcancel="stopVoiceRecording()" class="center-voice-btn">
+            <button id="centerVoiceBtn" type="button" onclick="toggleVoiceRecording()" class="center-voice-btn">
               <div id="voiceIdleState" class="flex items-center gap-2">
                 <i data-lucide="mic" style="width:20px;height:20px"></i>
-                <span>按住说话</span>
+                <span>点一下说话</span>
               </div>
               <div id="voiceRecordingState" class="hidden items-center gap-2">
                 <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
-                <span>松开发送</span>
+                <span>再点一下发送</span>
               </div>
             </button>
             <input id="messageInput" type="text" placeholder="也可以打字和我说说今天的事..." />
@@ -1118,6 +1129,18 @@
             <i data-lucide="plus-circle" style="width:18px;height:18px"></i>
             <span>开启新对话</span>
           </button>
+
+          <section class="right-current-chat">
+            <div class="right-current-title">
+              <i data-lucide="message-circle" style="width:18px;height:18px"></i>
+              <span>当前对话</span>
+            </div>
+            <div class="video-message-strip chat-history-area nice-scroll">
+              <div id="messagesContainer" class="video-message-list">
+                <div class="message message-bot">晚上好！今天过得怎么样呀？</div>
+              </div>
+            </div>
+          </section>
 
           <div class="session-panel">
             <div class="session-panel-title">

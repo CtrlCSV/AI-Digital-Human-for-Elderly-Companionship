@@ -15,6 +15,7 @@ import os
 
 import chromadb
 import pandas as pd
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
@@ -23,8 +24,12 @@ MIN_USER_LEN = 15          # 用户陈述最短长度，过滤无意义短句
 EMBED_BATCH = 256
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_BASE_DIR, ".env"))
 _DATA_DIR = os.path.join(_BASE_DIR, "datasets", "SoulChat", "data")
 _BGE_LOCAL = os.path.join(_BASE_DIR, "models", "bge-small-zh-v1.5")
+_VECTOR_DB_PATH = os.path.abspath(os.path.expanduser(os.path.expandvars(
+    os.environ.get("VECTOR_DB_PATH", os.path.join(_BASE_DIR, "vector_db"))
+)))
 COLLECTION_NAME = "soulchat_knowledge"
 
 
@@ -72,7 +77,7 @@ def main():
     print("正在加载 Embedding 模型...")
     embedder = SentenceTransformer(_BGE_LOCAL if os.path.isdir(_BGE_LOCAL) else "BAAI/bge-small-zh-v1.5")
 
-    client = chromadb.PersistentClient(path="./vector_db")
+    client = chromadb.PersistentClient(path=_VECTOR_DB_PATH)
     collection = client.get_or_create_collection(name=COLLECTION_NAME)
     if collection.count() > 0:
         print(f"集合 {COLLECTION_NAME} 已有 {collection.count()} 条数据，跳过初始化。")

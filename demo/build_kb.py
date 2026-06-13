@@ -1,6 +1,7 @@
 import os
 import json
 import chromadb
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 # ==========================================
@@ -8,12 +9,16 @@ from sentence_transformers import SentenceTransformer
 # ==========================================
 print("正在加载 Embedding 模型...")
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_BASE_DIR, ".env"))
 _BGE_LOCAL = os.path.join(_BASE_DIR, "models", "bge-small-zh-v1.5")
+_VECTOR_DB_PATH = os.path.abspath(os.path.expanduser(os.path.expandvars(
+    os.environ.get("VECTOR_DB_PATH", os.path.join(_BASE_DIR, "vector_db"))
+)))
 embedder = SentenceTransformer(_BGE_LOCAL if os.path.isdir(_BGE_LOCAL) else 'BAAI/bge-small-zh-v1.5')
 
 print("正在初始化 ChromaDB 本地持久化存储...")
 # PersistentClient 会在当前目录下生成一个 vector_db 文件夹，把数据写进硬盘
-client = chromadb.PersistentClient(path="./vector_db")
+client = chromadb.PersistentClient(path=_VECTOR_DB_PATH)
 
 # 获取或创建一个集合 (类似关系型数据库中的 Table)
 # 针对欧氏距离 (L2) 进行了默认优化
@@ -24,7 +29,7 @@ collection = client.get_or_create_collection(name="psy_cbt_knowledge")
 # 2. 准备数据源 (改为读取本地文件)
 # ==========================================
 print("正在读取本地 JSON 文件...")
-with open('psy_data.json', 'r', encoding='utf-8') as f:
+with open(os.path.join(_BASE_DIR, 'psy_data.json'), 'r', encoding='utf-8') as f:
     # 将 JSON 文件加载为 Python 的列表(List)
     real_data = json.load(f) 
     print(f"成功读取了 {len(real_data)} 条数据！")

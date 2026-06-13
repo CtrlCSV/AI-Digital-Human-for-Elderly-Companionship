@@ -97,6 +97,7 @@ lightdsa==0.0.3
 lightecc==0.0.6
 lightphe==0.0.24
 llvmlite==0.47.0
+loguru==0.7.3
 lz4==4.4.5
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
