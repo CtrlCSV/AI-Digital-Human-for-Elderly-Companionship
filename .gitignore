@@ -89,9 +89,15 @@ crisis_log.jsonl
 demo/user_profiles.json
 user_profiles.json
 
-# 提醒数据
+# 提醒数据（聊天解析的一次性提醒 + 提醒管理页的可重复提醒）
 demo/reminders.json
 reminders.json
+demo/reminder_service.json
+reminder_service.json
+
+# 通用按用户键值存储（家人通知/健康档案/会话/陪伴时长等本地记录）
+demo/user_data.json
+user_data.json
 
 # 家属联系人
 demo/contacts.json
