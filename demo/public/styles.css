@@ -3207,7 +3207,7 @@ body.care-mode .session-item {
   height: 84px;
   margin: 0 auto 14px;
   border-radius: 50%;
-  background: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=6')) center / cover no-repeat;
+  background: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=8')) center / cover no-repeat;
   box-shadow: 0 10px 24px rgba(170, 130, 80, 0.16);
 }
 

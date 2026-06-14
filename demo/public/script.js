@@ -4,13 +4,13 @@
 
 const AVATARS = [
   null,
-  { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=6' },
+  { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=8' },
   { id: 2, name: '老王', desc: '风趣幽默，随时唠嗑～', skinClass: 'avatar-friend2', welcome: '你好，我是老王，咱们随便聊！', imagePath: '/static/avatar-laowang.png?v=3' },
   { id: 3, name: '小明', desc: '年轻伙伴，活力陪聊～', skinClass: 'avatar-friend3', welcome: '你好，我是小明，和你聊聊生活、兴趣、好心情！', imagePath: '/static/avatar-xiaoming.png?v=3' },
 ];
 
 const COMPANION_CARDS = [
-  { id: 1, name: '\u5c0f\u4e3d', desc: '\u8d34\u5fc3\u5b59\u5973 \u00b7 \u6e29\u67d4\u966a\u4f34', image: '/static/avatar-xiaoli.png?v=6', action: '\u9009\u62e9\u5979' },
+  { id: 1, name: '\u5c0f\u4e3d', desc: '\u8d34\u5fc3\u5b59\u5973 \u00b7 \u6e29\u67d4\u966a\u4f34', image: '/static/avatar-xiaoli.png?v=8', action: '\u9009\u62e9\u5979' },
   { id: 2, name: '\u8001\u738b', desc: '\u540c\u9f84\u8001\u53cb \u00b7 \u5520\u55d1\u8c08\u5fc3', image: '/static/avatar-laowang.png?v=3', action: '\u9009\u62e9\u4ed6' },
   { id: 3, name: '\u5c0f\u660e', desc: '\u5e74\u8f7b\u4f19\u4f34 \u00b7 \u6d3b\u529b\u966a\u804a', image: '/static/avatar-xiaoming.png?v=3', action: '\u9009\u62e9\u4ed6' },
 ];
