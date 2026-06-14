@@ -3207,7 +3207,7 @@ body.care-mode .session-item {
   height: 84px;
   margin: 0 auto 14px;
   border-radius: 50%;
-  background: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=3')) center / cover no-repeat;
+  background: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=6')) center / cover no-repeat;
   box-shadow: 0 10px 24px rgba(170, 130, 80, 0.16);
 }
 
@@ -3270,10 +3270,11 @@ body.care-mode .session-item {
 
 #chatPage .living-room-bg {
   background:
-    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.95), rgba(255, 250, 210, 0.52) 34%, transparent 35%),
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.9), rgba(255, 250, 210, 0.45) 30%, transparent 31%),
     linear-gradient(135deg, rgba(255, 255, 245, 0.25), rgba(255, 176, 57, 0.24));
 }
 
+/* 圆形显示框背景：与数字人图片背景（暖色米白 #FAF3E4）一致，融入界面、人像无缝衔接 */
 #chatPage .living-room-bg::after {
   left: 50%;
   top: 50%;
@@ -3283,8 +3284,8 @@ body.care-mode .session-item {
   aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: linear-gradient(180deg, #fffde9 0%, #fff4b8 100%);
-  box-shadow: 0 24px 70px rgba(216, 126, 42, 0.22);
+  background: #FAF3E4;
+  box-shadow: 0 24px 70px rgba(170, 130, 80, 0.18);
 }
 
 #chatPage .digital-human-container.video-avatar-stage {
@@ -3302,12 +3303,16 @@ body.care-mode .session-item {
 
 #chatPage .digital-human-container.video-avatar-stage video,
 #chatPage .digital-human-container.video-avatar-stage .avatar-poster {
-  inset: 9% 13% 2% !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-  object-position: center bottom !important;
-  border-radius: 0;
+  /* 数字人画面填满圆形显示框并居中：正方形视频/海报 → 正方形显示框，cover 即精确填满，
+     人物水平居中；四角的纯黑区域由圆形遮罩裁掉，不影响人物。
+     （注意：对 <video>/<img> 这类替换元素，inset+width/height:auto 不会拉伸到内框、
+     会导致偏移，故必须用 width/height:100% 显式撑满。） */
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  border-radius: inherit;
 }
 
 #chatPage .call-companion-badge {
