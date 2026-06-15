@@ -55,8 +55,6 @@ girl_angry.png
 girl_fear.png
 girl_surprise.png
 girl_disgust.png
-old.png
-old_happy.png
 boy.png
 boy_happy.png
 ```

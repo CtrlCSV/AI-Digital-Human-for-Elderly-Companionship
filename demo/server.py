@@ -72,7 +72,7 @@ async def _generate_preset_idle_videos():
     if not flashhead_adapter.is_available():
         return
     await asyncio.sleep(3)
-    role_map = {1: "girl", 2: "boy", 3: "boy"}
+    role_map = {1: "girl", 3: "boy"}
     _pub = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
     for avatar_id, role in role_map.items():
         if _idle_segment_paths(role):
@@ -171,8 +171,6 @@ class ResponseState:
 def resolve_role(avatar_id):
     if avatar_id == 1:
         return "girl"
-    if avatar_id == 2:
-        return "boy"
     if avatar_id == 3:
         return "boy"
     return "girl"
@@ -522,9 +520,9 @@ async def upload_avatar(
 
     ext = "png" if "png" in (file.content_type or "") else "jpg"
 
-    if slot in (1, 2, 3):
-        avatar_filenames = {1: "avatar-xiaoli", 2: "avatar-laowang", 3: "avatar-xiaoming"}
-        role_names = {1: "girl", 2: "boy", 3: "boy"}
+    if slot in (1, 3):
+        avatar_filenames = {1: "avatar-xiaoli", 3: "avatar-xiaoming"}
+        role_names = {1: "girl", 3: "boy"}
         fname = f"{avatar_filenames[slot]}.{ext}"
         save_path = os.path.join(_PUBLIC_DIR, fname)
         flashhead_adapter.AVATAR_PORTRAITS[slot] = save_path

@@ -5,13 +5,12 @@
 const AVATARS = [
   null,
   { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=8' },
-  { id: 2, name: '阿哲', desc: '理性风趣，陪你梳理想法～', skinClass: 'avatar-friend2', welcome: '你好，我是阿哲，想聊生活、工作还是兴趣都可以！', imagePath: '/static/avatar-xiaoming.png?v=3' },
+  null,
   { id: 3, name: '小明', desc: '年轻伙伴，活力陪聊～', skinClass: 'avatar-friend3', welcome: '你好，我是小明，和你聊聊生活、兴趣、好心情！', imagePath: '/static/avatar-xiaoming.png?v=3' },
 ];
 
 const COMPANION_CARDS = [
   { id: 1, name: '小丽', desc: '温柔倾听 · 情绪陪伴', image: '/static/avatar-xiaoli.png?v=8', action: '选择她' },
-  { id: 2, name: '阿哲', desc: '理性风趣 · 思路整理', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
   { id: 3, name: '小明', desc: '阳光伙伴 · 活力陪聊', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
 ];
 
@@ -1942,7 +1941,7 @@ const VideoPlayer = {
 
 // ---------------------- 待机视频加载 ----------------------
 async function tryLoadIdleVideo(avatarId) {
-  const roleMap = { 1: 'girl', 2: 'boy', 3: 'boy', 99: 'custom' };
+  const roleMap = { 1: 'girl', 3: 'boy', 99: 'custom' };
   const role = roleMap[avatarId];
   if (!role) return;
   const playlistUrl = `/api/idle-video/playlist?role=${role}`;

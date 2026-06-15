@@ -11,7 +11,7 @@ no longer exists, the adapter falls back to the repository layout used by init_p
 Optional expression portraits can be added beside the base portraits, for example:
   avatars/portraits/girl_happy.png
   avatars/portraits/girl_sad.png
-  avatars/portraits/old_neutral.png
+  avatars/portraits/boy_neutral.png
 """
 
 import io
@@ -77,10 +77,9 @@ FLASHHEAD_WAV2VEC_DIR = _resolve_config_path(
 )
 FLASHHEAD_MODEL_TYPE = os.environ.get("FLASHHEAD_MODEL_TYPE", "lite")
 
-# avatar_id 1=girl, 2=elderly, 3=boy
+# avatar_id 1=girl, 3=boy
 AVATAR_PORTRAITS = {
     1: str(PROJECT_ROOT / "avatars" / "portraits" / "girl.png"),
-    2: str(PROJECT_ROOT / "avatars" / "portraits" / "old.png"),
     3: str(PROJECT_ROOT / "avatars" / "portraits" / "boy.png"),
 }
 

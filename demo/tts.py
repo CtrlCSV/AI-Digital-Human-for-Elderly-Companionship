@@ -21,7 +21,6 @@ class TTSGenerationError(Exception):
 ROLE_CONFIG = {
     "girl":    {"rate": "+5%",  "pitch": "+2%"},
     "boy":     {"rate": "0%",   "pitch": "0%"},
-    "elderly": {"rate": "-5%",  "pitch": "-3%"},
 }
 
 # ── 方言配置 ──────────────────────────────────────────────────────────────────
@@ -35,12 +34,10 @@ DIALECT_CONFIG = {
         "voices": {
             "girl":    "zh-CN-XiaoxiaoNeural",
             "boy":     "zh-CN-YunxiNeural",
-            "elderly": "zh-CN-YunzeNeural",
         },
         "styles": {
             "girl":    "friendly",
             "boy":     "chat",
-            "elderly": "calm",
         },
     },
     "cantonese": {
@@ -49,7 +46,6 @@ DIALECT_CONFIG = {
         "voices": {
             "girl":    "zh-HK-HiuGaaiNeural",
             "boy":     "zh-HK-WanLungNeural",
-            "elderly": "zh-HK-WanLungNeural",
         },
         "styles": {},  # 粤语声音不支持 express-as
     },
@@ -59,7 +55,6 @@ DIALECT_CONFIG = {
         "voices": {
             "girl":    "zh-TW-HsiaoChenNeural",
             "boy":     "zh-TW-YunJheNeural",
-            "elderly": "zh-TW-YunJheNeural",
         },
         "styles": {},
     },
