@@ -498,13 +498,16 @@
 
 .companion-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px;
+  width: 100%;
+  max-width: 860px;
+  margin: 56px auto 0;
 }
 
 .companion-card {
-  min-height: 310px;
-  padding: 28px 24px;
+  min-height: 420px;
+  padding: 40px 32px;
   border: 2px solid rgba(243, 232, 207, 0.95);
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.92);
@@ -524,8 +527,8 @@
 }
 
 .companion-card img {
-  width: 124px;
-  height: 124px;
+  width: 168px;
+  height: 168px;
   border-radius: 50%;
   object-fit: cover;
   background: #EAF2FF;

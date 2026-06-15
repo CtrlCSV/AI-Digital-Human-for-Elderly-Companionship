@@ -32,7 +32,7 @@ from crisis_classifier import predict as _local_predict
 load_dotenv()
 _API_KEY = os.getenv("API_KEY")
 _LLM_URL = os.getenv("LLM_API_URL", "https://api.siliconflow.cn/v1/chat/completions")
-_LLM_MODEL = os.getenv("LLM_MODEL", "Pro/Qwen/Qwen2.5-7B-Instruct")
+_LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-ai/DeepSeek-V4-Flash")
 
 LOG_FILE = Path(__file__).resolve().parent / "crisis_log.jsonl"
 

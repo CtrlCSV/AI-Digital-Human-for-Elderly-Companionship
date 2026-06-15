@@ -17,7 +17,7 @@ load_dotenv(os.path.join(_HERE, ".env"))
 
 API_KEY = os.environ.get("API_KEY", "")
 _LLM_API_URL = os.environ.get("LLM_API_URL", "https://api.siliconflow.cn/v1/chat/completions")
-_LLM_MODEL = os.environ.get("LLM_MODEL", "Pro/Qwen/Qwen2.5-7B-Instruct")
+_LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-ai/DeepSeek-V4-Flash")
 _EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
 _VECTOR_DB_PATH = os.path.abspath(os.path.expanduser(os.path.expandvars(os.environ.get(
     "VECTOR_DB_PATH",

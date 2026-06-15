@@ -226,7 +226,7 @@ async def _llm_call(prompt: str, max_tokens: int = 512) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "deepseek-ai/DeepSeek-V3.2",
+        "model": "deepseek-ai/DeepSeek-V4-Flash",
         "messages": [
             {"role": "system", "content": "你是严格的 JSON 助手，只输出 JSON，不输出任何其他内容。"},
             {"role": "user", "content": prompt},
@@ -324,7 +324,7 @@ async def _regen_summary(user_id: str):
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "deepseek-ai/DeepSeek-V3.2",
+        "model": "deepseek-ai/DeepSeek-V4-Flash",
         "messages": [
             {"role": "system", "content": "你是用户画像摘要助手，生成简洁的用户背景描述。"},
             {"role": "user", "content": _SUMMARY_PROMPT.format(
