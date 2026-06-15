@@ -1,3 +1,6 @@
+# PyTorch CUDA 12.1 wheels：torch/torchvision/torchaudio 的 +cu121 版本只在该源，PyPI 上没有。
+# 缺这一行，pip install -r 会找不到 +cu121 → 回退装成 CPU 版（FlashHead 会退到 CPU，极慢）。
+--extra-index-url https://download.pytorch.org/whl/cu121
 absl-py==2.4.0
 accelerate==1.13.0
 aiohappyeyeballs==2.6.1

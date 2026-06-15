@@ -1,3 +1,14 @@
+import os
+
+# 强制 DeepFace 的 TensorFlow 后端只用 CPU：把整块 GPU 显存让给 FlashHead 视频生成。
+# 必须在 import deepface（会触发 import tensorflow）之前隐藏 GPU，否则 TF 会先抢占显存导致 FlashHead OOM。
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+try:
+    import tensorflow as tf
+    tf.config.set_visible_devices([], "GPU")
+except Exception as _e:
+    print(f"[emotion] 限制 TensorFlow 使用 CPU 失败（忽略）: {_e}")
+
 import cv2
 from deepface import DeepFace
 import numpy as np
