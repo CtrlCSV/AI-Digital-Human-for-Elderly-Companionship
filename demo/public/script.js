@@ -5,28 +5,28 @@
 const AVATARS = [
   null,
   { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=8' },
-  { id: 2, name: '老王', desc: '风趣幽默，随时唠嗑～', skinClass: 'avatar-friend2', welcome: '你好，我是老王，咱们随便聊！', imagePath: '/static/avatar-laowang.png?v=3' },
+  { id: 2, name: '阿哲', desc: '理性风趣，陪你梳理想法～', skinClass: 'avatar-friend2', welcome: '你好，我是阿哲，想聊生活、工作还是兴趣都可以！', imagePath: '/static/avatar-xiaoming.png?v=3' },
   { id: 3, name: '小明', desc: '年轻伙伴，活力陪聊～', skinClass: 'avatar-friend3', welcome: '你好，我是小明，和你聊聊生活、兴趣、好心情！', imagePath: '/static/avatar-xiaoming.png?v=3' },
 ];
 
 const COMPANION_CARDS = [
-  { id: 1, name: '\u5c0f\u4e3d', desc: '\u8d34\u5fc3\u5b59\u5973 \u00b7 \u6e29\u67d4\u966a\u4f34', image: '/static/avatar-xiaoli.png?v=8', action: '\u9009\u62e9\u5979' },
-  { id: 2, name: '\u8001\u738b', desc: '\u540c\u9f84\u8001\u53cb \u00b7 \u5520\u55d1\u8c08\u5fc3', image: '/static/avatar-laowang.png?v=3', action: '\u9009\u62e9\u4ed6' },
-  { id: 3, name: '\u5c0f\u660e', desc: '\u5e74\u8f7b\u4f19\u4f34 \u00b7 \u6d3b\u529b\u966a\u804a', image: '/static/avatar-xiaoming.png?v=3', action: '\u9009\u62e9\u4ed6' },
+  { id: 1, name: '小丽', desc: '温柔倾听 · 情绪陪伴', image: '/static/avatar-xiaoli.png?v=8', action: '选择她' },
+  { id: 2, name: '阿哲', desc: '理性风趣 · 思路整理', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
+  { id: 3, name: '小明', desc: '阳光伙伴 · 活力陪聊', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
 ];
 
 const REMINDER_CATEGORIES = [
   { key: 'all', label: '\u5168\u90e8' },
-  { key: 'medicine', label: '\u7528\u836f\u63d0\u9192' },
-  { key: 'water', label: '\u559d\u6c34\u63d0\u9192' },
-  { key: 'activity', label: '\u6d3b\u52a8\u63d0\u9192' },
+  { key: 'medicine', label: '事项提醒' },
+  { key: 'water', label: '喝水提醒' },
+  { key: 'activity', label: '运动提醒' },
   { key: 'other', label: '\u5176\u4ed6' },
 ];
 
 const REMINDER_ICON_BY_TYPE = {
-  medicine: 'pill',
+  medicine: 'calendar-check',
   water: 'glass-water',
-  activity: 'footprints',
+  activity: 'activity',
   other: 'bell',
 };
 
@@ -40,7 +40,7 @@ const REMEMBER_USERNAME_KEY = 'warm-companion-remember-username';
 
 // ============================================================
 // 后端接口对接层
-//   - 联系人 → /api/contacts（contacts.py，危机告警/联系家属的数据源）
+//   - 联系人 → /api/contacts（contacts.py，危机告警/紧急联系人的数据源）
 //   - 我的提醒 → /api/reminders（reminder_service.py，后端定时让数字人播报）
 //   - 其余本地数据 → /api/userdata（通用按用户键值存储）
 //   一律「本地缓存 + 异步同步 + 登录时拉取」：后端失败时回退本地，绝不阻塞 UI。
@@ -101,7 +101,7 @@ async function hydrateUserDataFromBackend() {
   });
 }
 
-// 家庭联系人：从后端拉取并写入本地缓存（保持 getFamilyContacts 同步可用）
+// 联系人：从后端拉取并写入本地缓存（保持 getFamilyContacts 同步可用）
 async function hydrateFamilyContacts() {
   const uid = currentUserId();
   if (!uid) return;
@@ -156,17 +156,17 @@ async function hydrateAllUserData() {
 let reminderServiceState = {
   category: 'all',
   items: [
-    { id: 'medicine-1', type: 'medicine', name: '\u964d\u538b\u836f', time: '\u6bcf\u5929 08:00', repeat: '\u6bcf\u65e5', enabled: true },
-    { id: 'water-1', type: 'water', name: '\u559d\u6c34\u63d0\u9192', time: '\u6bcf 2 \u5c0f\u65f6', repeat: '08:00-20:00', enabled: true },
-    { id: 'walk-1', type: 'activity', name: '\u6563\u6b65\u63d0\u9192', time: '\u6bcf\u5929 17:00', repeat: '\u6bcf\u65e5', enabled: true },
+    { id: 'todo-1', type: 'medicine', name: '项目会议', time: '每天 09:30', repeat: '工作日', enabled: true },
+    { id: 'water-1', type: 'water', name: '喝水提醒', time: '每 2 小时', repeat: '09:00-21:00', enabled: true },
+    { id: 'workout-1', type: 'activity', name: '运动提醒', time: '每天 18:30', repeat: '每日', enabled: true },
   ],
 };
 
 function getDefaultReminderServiceItems() {
   return [
-    { id: 'medicine-1', type: 'medicine', name: '\u964d\u538b\u836f', time: '\u6bcf\u5929 08:00', repeat: '\u6bcf\u65e5', enabled: true },
-    { id: 'water-1', type: 'water', name: '\u559d\u6c34\u63d0\u9192', time: '\u6bcf 2 \u5c0f\u65f6', repeat: '08:00-20:00', enabled: true },
-    { id: 'walk-1', type: 'activity', name: '\u6563\u6b65\u63d0\u9192', time: '\u6bcf\u5929 17:00', repeat: '\u6bcf\u65e5', enabled: true },
+    { id: 'todo-1', type: 'medicine', name: '项目会议', time: '每天 09:30', repeat: '工作日', enabled: true },
+    { id: 'water-1', type: 'water', name: '喝水提醒', time: '每 2 小时', repeat: '09:00-21:00', enabled: true },
+    { id: 'workout-1', type: 'activity', name: '运动提醒', time: '每天 18:30', repeat: '每日', enabled: true },
   ];
 }
 
@@ -320,7 +320,7 @@ function saveFamilyNotifySettings(showSavedToast = true) {
     return;
   }
   persistLocal(key, JSON.stringify(familyNotifySettings));
-  if (showSavedToast) showToast('家人通知设置已保存', 'info');
+  if (showSavedToast) showToast('联系人通知设置已保存', 'info');
 }
 
 function getReminderLogs() {
@@ -383,18 +383,18 @@ function renderFamilyNotifyPanel() {
       contactEl.innerHTML = contacts.length
         ? contacts.map(contact => `
           <div>
-            <strong>${escapeHtml(contact.relation || '家属')} ${escapeHtml(contact.name)}</strong>
+            <strong>${escapeHtml(contact.relation || '联系人')} ${escapeHtml(contact.name)}</strong>
             <span>${escapeHtml(contact.phone || '未填写电话')}${contact.emergency ? ' · 紧急' : ''}</span>
           </div>
         `).join('')
-        : '<div><strong>暂无家庭联系人</strong><span>请到个人中心添加</span></div>';
+        : '<div><strong>暂无联系人</strong><span>请到个人中心添加</span></div>';
     }
   }
   if (!listEl) return;
   const options = [
-    { key: 'medicine', label: '用药提醒同步给家属' },
-    { key: 'emergency', label: '紧急情况通知家属' },
-    { key: 'summary', label: '每日陪伴摘要通知家属' },
+    { key: 'medicine', label: '事项提醒同步给联系人' },
+    { key: 'emergency', label: '紧急情况通知联系人' },
+    { key: 'summary', label: '每日陪伴摘要通知联系人' },
   ];
   listEl.innerHTML = options.map(option => `
     <div class="family-notify-row">
@@ -974,7 +974,7 @@ function saveHealthProfile() {
   };
   writeJsonStorage(userScopedKey('warm-companion-health-profile'), data);
   closeProfileFeatureModal('healthProfileModal');
-  showToast('健康档案已保存', 'info');
+  showToast('生活档案已保存', 'info');
 }
 
 function getFamilyContacts() {
@@ -1083,7 +1083,7 @@ async function saveFamilyContactFromForm() {
   }
   renderFamilyContactsList();
   resetFamilyContactForm();
-  showToast('家庭联系人已保存', 'info');
+  showToast('联系人已保存', 'info');
 }
 
 async function deleteFamilyContact(id) {
@@ -1143,7 +1143,7 @@ function openProfileSettingsModal() {
   ensureProfileModal('profileSettingsModal', '设置', `
     <div class="profile-settings-list">
       <div class="profile-setting-row">
-        <div><strong>关怀模式</strong><p>放大文字，方便阅读</p></div>
+        <div><strong>清晰模式</strong><p>放大文字，方便阅读</p></div>
         <button id="profileCareModeSwitch" type="button" class="reminder-switch ${document.body.classList.contains('care-mode') ? 'on' : ''}" onclick="toggleProfileCareMode()"><span></span></button>
       </div>
       <label class="profile-setting-field">
@@ -1942,7 +1942,7 @@ const VideoPlayer = {
 
 // ---------------------- 待机视频加载 ----------------------
 async function tryLoadIdleVideo(avatarId) {
-  const roleMap = { 1: 'girl', 2: 'elderly', 3: 'boy', 99: 'custom' };
+  const roleMap = { 1: 'girl', 2: 'boy', 3: 'boy', 99: 'custom' };
   const role = roleMap[avatarId];
   if (!role) return;
   const playlistUrl = `/api/idle-video/playlist?role=${role}`;
@@ -2193,11 +2193,11 @@ function showCrisisBanner(hotlines, contactAction = null) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;';
     const label = document.createElement('span');
-    label.textContent = '也可以联系家属：';
+    label.textContent = '也可以联系紧急联系人：';
     const link = document.createElement('a');
     link.href = `tel:${contactAction.phone}`;
     link.style.cssText = 'color:#7f1d1d;font-weight:700;text-decoration:underline;';
-    link.textContent = `${contact.displayName || '家属'} ${contactAction.phone}`;
+    link.textContent = `${contact.displayName || '联系人'} ${contactAction.phone}`;
     row.appendChild(label);
     row.appendChild(link);
     body.appendChild(row);
@@ -2547,7 +2547,7 @@ function toggleCareMode() {
   document.body.classList.toggle('care-mode');
   const on = document.body.classList.contains('care-mode');
   persistLocal('care-mode', on ? 'enabled' : 'disabled');
-  showToast(on ? '✅ 已开启关怀模式，文字更大更清晰' : '关怀模式已关闭', 'info');
+  showToast(on ? '已开启清晰模式，文字更大更清晰' : '清晰模式已关闭', 'info');
 }
 
 function applyCareModePreference() {
@@ -2573,10 +2573,9 @@ function openHistory() {
 
 function closeDrawers() {
   const sidebar = document.getElementById('historyDrawer');
-  sidebar?.classList.add('closed');
-  sidebar?.classList.add('-translate-x-full');
-  document.querySelector('.companion-layout')?.classList.add('sidebar-collapsed');
-  document.getElementById('sidebarOpenBtn')?.classList.add('visible');
+  sidebar?.classList.remove('-translate-x-full', 'closed');
+  document.querySelector('.companion-layout')?.classList.remove('sidebar-collapsed');
+  document.getElementById('sidebarOpenBtn')?.classList.remove('visible');
   _toggleDrawerOverlay(false);
 }
 

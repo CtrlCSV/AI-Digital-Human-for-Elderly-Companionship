@@ -4,25 +4,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>智伴暖阳 - 数字人聊天助手</title>
+  <title>智伴同行 - 数字人聊天助手</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="/static/lucide-fallback.js?v=1"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=24">
+  <link rel="stylesheet" href="/static/styles.css?v=25">
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            cream: { 50: '#FDF9F1', 100: '#FAF3E4', 200: '#F3E8CF', 300: '#E8D5A8' },
-            ink: { 900: '#3D2E1F', 700: '#5C4A36', 500: '#8B7A65', 400: '#A89B86' },
-            warm: { 500: '#E89B4C', 600: '#D87E2A' },
+            cream: { 50: '#F6F8FB', 100: '#EAF2FF', 200: '#DDE7F3', 300: '#BFD1E5' },
+            ink: { 900: '#172033', 700: '#334155', 500: '#64748B', 400: '#94A3B8' },
+            warm: { 500: '#2563EB', 600: '#0F766E' },
             danger: { 500: '#E5564E', 50: '#FCEBE9' },
           },
           fontFamily: { sans: ['"Noto Sans SC"', 'system-ui', 'sans-serif'] },
           boxShadow: {
-            soft: '0 2px 12px rgba(170, 130, 80, 0.06)',
-            card: '0 4px 20px rgba(170, 130, 80, 0.08)',
+            soft: '0 2px 12px rgba(30, 41, 59, 0.06)',
+            card: '0 4px 20px rgba(30, 41, 59, 0.08)',
           },
         },
       },
@@ -47,8 +48,8 @@
     }
 
     body {
-      background-color: #FDF9F1;
-      color: #3D2E1F;
+      background-color: #F6F8FB;
+      color: #172033;
       font-size: 1.0625rem;
     }
 
@@ -101,7 +102,7 @@
     }
 
     .message-bot::before {
-      background-color: #FAF3E4;
+      background-color: #EAF2FF;
       background-image: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=8'));
     }
 
@@ -110,7 +111,7 @@
     }
 
     .message-user::before {
-      background-color: #F3E8CF;
+      background-color: #DDE7F3;
       background-image: url('https://api.dicebear.com/9.x/personas/svg?seed=LiUncle&backgroundColor=c5d4e8');
     }
 
@@ -120,17 +121,17 @@
       max-width: 75%;
       font-size: 1.0625rem;
       line-height: 1.55;
-      color: #3D2E1F;
+      color: #172033;
       word-break: break-word;
     }
 
     .message-bot .bubble {
-      background: #FAF3E4;
+      background: #EAF2FF;
       border-top-left-radius: 6px;
     }
 
     .message-user .bubble {
-      background: #F3E8CF;
+      background: #DDE7F3;
       border-top-right-radius: 6px;
     }
 
@@ -173,25 +174,25 @@
     }
 
     .session-item:hover {
-      background: #FDF9F1;
-      border-color: #F3E8CF;
+      background: #F6F8FB;
+      border-color: #DDE7F3;
     }
 
     .session-item.active {
-      background: #FAF3E4;
-      border-color: #E8D5A8;
+      background: #EAF2FF;
+      border-color: #BFD1E5;
     }
 
     .session-time {
       font-size: 0.78rem;
-      color: #D87E2A;
+      color: #0F766E;
       font-weight: 500;
       margin-bottom: 2px;
     }
 
     .session-summary {
       font-size: 0.9rem;
-      color: #3D2E1F;
+      color: #172033;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -205,7 +206,7 @@
       border-radius: 6px;
       opacity: 0.4;
       transition: all .15s;
-      color: #8B7A65;
+      color: #64748B;
       font-size: 0.9rem;
     }
 
@@ -231,7 +232,7 @@
     }
 
     #breathingLight.listening {
-      background: radial-gradient(circle at center, rgba(232, 155, 76, 0.18), transparent 65%);
+      background: radial-gradient(circle at center, rgba(37, 99, 235, 0.18), transparent 65%);
       animation: breathePulse 2s ease-in-out infinite;
     }
 
@@ -353,7 +354,7 @@
       }
     }
 
-    /* 关怀模式 */
+        /* 清晰模式 */
     html.care-mode {
       font-size: 20px;
     }
@@ -364,7 +365,7 @@
       width: 48px;
       height: 28px;
       border-radius: 9999px;
-      background: #E8D5A8;
+      background: #BFD1E5;
       transition: background .2s;
       flex-shrink: 0;
       cursor: pointer;
@@ -385,7 +386,7 @@
     }
 
     body.care-mode .settings-switch {
-      background: #E89B4C;
+      background: #2563EB;
     }
 
     body.care-mode .settings-switch .settings-switch-knob {
@@ -413,13 +414,13 @@
     }
 
     .toast-message.info {
-      background: #FAF3E4;
-      color: #92400E;
+      background: #EAF2FF;
+      color: #1D4ED8;
     }
 
     .toast-message.warning {
-      background: #FEF3C7;
-      color: #92400E;
+      background: #ECFEFF;
+      color: #0F766E;
     }
 
     .toast-message.error {
@@ -473,10 +474,10 @@
           <div class="auth-brand-mark">
             <i data-lucide="heart-handshake" style="width:40px;height:40px;stroke-width:1.8"></i>
           </div>
-          <h1>智伴暖阳</h1>
-          <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
+          <h1>智伴同行</h1>
+          <p>数字人陪伴每一个人</p>
           <div class="auth-illustration">
-            <img src="/static/old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+            <img src="/static/avatar-xiaoli.png?v=8" alt="温暖陪伴数字人形象">
           </div>
         </section>
 
@@ -518,10 +519,10 @@
           <div class="auth-brand-mark">
             <i data-lucide="heart-handshake" style="width:40px;height:40px;stroke-width:1.8"></i>
           </div>
-          <h1>智伴暖阳</h1>
-          <p>&#x6570;&#x5b57;&#x4eba;&#x966a;&#x4f34;&#x60a8;&#x6bcf;&#x4e00;&#x5929;</p>
+          <h1>智伴同行</h1>
+          <p>数字人陪伴每一个人</p>
           <div class="auth-illustration">
-            <img src="/static/old%20woman.png" alt="&#x6e29;&#x5fc3;&#x966a;&#x4f34;&#x751f;&#x6d3b;&#x573a;&#x666f;">
+            <img src="/static/avatar-xiaoli.png?v=8" alt="温暖陪伴数字人形象">
           </div>
         </section>
 
@@ -562,8 +563,8 @@
             <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
           <div>
-            <h1>智伴暖阳</h1>
-            <p>数字人陪伴您每一天</p>
+            <h1>智伴同行</h1>
+            <p>数字人陪伴每一个人</p>
           </div>
         </div>
 
@@ -586,7 +587,7 @@
 
       <main class="select-main">
         <section class="select-hero">
-          <h2>智伴暖阳</h2>
+          <h2>智伴同行</h2>
           <p class="select-subtitle">请选择您的陪伴朋友</p>
         </section>
 
@@ -604,8 +605,8 @@
             <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
           <div>
-            <h1>智伴暖阳</h1>
-            <p>数字人陪伴您每一天</p>
+            <h1>智伴同行</h1>
+            <p>数字人陪伴每一个人</p>
           </div>
         </div>
 
@@ -633,7 +634,7 @@
               data-lucide="bell-ring" style="width:20px;height:20px"></i>
             我的提醒</button>
           <button id="reminderMenuFamily" type="button" onclick="switchReminderPanel('family')"><i data-lucide="users"
-              style="width:20px;height:20px"></i> 家人通知</button>
+              style="width:20px;height:20px"></i> 联系人通知</button>
           <button id="reminderMenuRecords" type="button" onclick="switchReminderPanel('records')"><i
               data-lucide="history" style="width:20px;height:20px"></i> 提醒记录</button>
         </aside>
@@ -643,7 +644,7 @@
             <div class="reminder-content-head">
               <div>
                 <h2>我的提醒</h2>
-                <p>管理用药、喝水、散步等日常事项</p>
+                <p>管理会议、喝水、运动等日常事项</p>
               </div>
               <button type="button" class="add-reminder-btn" onclick="addReminderPlaceholder()">
                 <i data-lucide="plus" style="width:20px;height:20px"></i>
@@ -658,8 +659,8 @@
           <div id="familyNotifyPanel" class="reminder-panel-hidden">
             <div class="reminder-content-head">
               <div>
-                <h2>家人通知</h2>
-                <p>可以设置提醒同步给家人</p>
+                <h2>联系人通知</h2>
+                <p>可以设置提醒同步给你信任的人</p>
               </div>
             </div>
 
@@ -667,10 +668,10 @@
               <article class="reminder-card reminder-info-card">
                 <div class="reminder-icon"><i data-lucide="users" style="width:28px;height:28px"></i></div>
                 <div class="reminder-info">
-                  <h3>家属联系人</h3>
+                  <h3>常用联系人</h3>
                   <div class="family-contact-list">
-                    <div><strong>女儿 张女士</strong><span>138****5678</span></div>
-                    <div><strong>儿子 李先生</strong><span>139****1234</span></div>
+                    <div><strong>朋友 林同学</strong><span>138****5678</span></div>
+                    <div><strong>同事 陈先生</strong><span>139****1234</span></div>
                   </div>
                 </div>
               </article>
@@ -712,13 +713,13 @@
       <div class="reminder-modal-form">
         <label>
           <span>提醒名称</span>
-          <input id="reminderNameInput" type="text" placeholder="例如：降压药">
+          <input id="reminderNameInput" type="text" placeholder="例如：项目会议">
         </label>
         <label>
           <span>提醒类型</span>
           <select id="reminderTypeSelect">
             <option value="">请选择类型</option>
-            <option value="medicine">用药提醒</option>
+            <option value="medicine">事项提醒</option>
             <option value="water">喝水提醒</option>
             <option value="activity">活动提醒</option>
             <option value="other">其他</option>
@@ -752,8 +753,8 @@
             <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
           <div>
-            <h1>智伴暖阳</h1>
-            <p>数字人陪伴您每一天</p>
+            <h1>智伴同行</h1>
+            <p>数字人陪伴每一个人</p>
           </div>
         </div>
 
@@ -778,7 +779,7 @@
         <aside class="profile-left">
           <section class="profile-user-card">
             <div id="profileAvatar" class="profile-avatar"></div>
-            <h2 id="profileName">张阿姨</h2>
+            <h2 id="profileName">新朋友</h2>
             <p id="profilePhone">138****5678</p>
             <button type="button" onclick="editProfilePlaceholder()" class="profile-edit-btn">编辑资料</button>
           </section>
@@ -855,7 +856,7 @@
     onclick="if(event.target===this) closeProfileFeatureModal('healthProfileModal')">
     <div class="profile-feature-card">
       <div class="profile-modal-head">
-        <h2>我的健康档案</h2>
+        <h2>我的生活档案</h2>
         <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('healthProfileModal')"
           aria-label="关闭">
           <i data-lucide="x" style="width:22px;height:22px"></i>
@@ -867,8 +868,8 @@
           <label><span>体重 kg</span><input id="healthWeightInput" type="text" placeholder="例如 60"></label>
           <label><span>血压</span><input id="healthBloodPressureInput" type="text" placeholder="例如 120/80"></label>
           <label><span>血糖（可选）</span><input id="healthBloodSugarInput" type="text" placeholder="例如 5.6 mmol/L"></label>
-          <label><span>常用药</span><input id="healthMedicineInput" type="text" placeholder="例如 降压药"></label>
-          <label><span>过敏史</span><input id="healthAllergyInput" type="text" placeholder="例如 青霉素过敏"></label>
+          <label><span>常用事项</span><input id="healthMedicineInput" type="text" placeholder="例如 健身、阅读、课程"></label>
+          <label><span>注意事项</span><input id="healthAllergyInput" type="text" placeholder="例如 不吃辣、花粉过敏"></label>
           <label class="profile-form-wide"><span>备注</span><textarea id="healthNoteInput"
               placeholder="其他需要记录的信息"></textarea></label>
         </div>
@@ -884,7 +885,7 @@
     onclick="if(event.target===this) closeProfileFeatureModal('familyContactsModal')">
     <div class="profile-feature-card">
       <div class="profile-modal-head">
-        <h2>家庭联系人</h2>
+        <h2>联系人</h2>
         <button type="button" class="profile-modal-close" onclick="closeProfileFeatureModal('familyContactsModal')"
           aria-label="关闭">
           <i data-lucide="x" style="width:22px;height:22px"></i>
@@ -896,7 +897,7 @@
           <h3 id="familyContactEditorTitle">新增联系人</h3>
           <div class="profile-form-grid">
             <label><span>姓名</span><input id="familyContactNameInput" type="text" placeholder="联系人姓名"></label>
-            <label><span>关系</span><input id="familyContactRelationInput" type="text" placeholder="例如 女儿"></label>
+            <label><span>关系</span><input id="familyContactRelationInput" type="text" placeholder="例如 朋友、同事、家人"></label>
             <label><span>电话</span><input id="familyContactPhoneInput" type="text" placeholder="11 位手机号或脱敏格式"></label>
             <label class="edit-profile-switch-row"><span>紧急联系人</span><input id="familyContactEmergencyInput"
                 type="checkbox"></label>
@@ -923,7 +924,7 @@
       <div class="profile-feature-body">
         <div class="profile-faq-list">
           <div><strong>如何切换陪伴对象</strong><p>返回首页后，点击想要陪伴聊天的数字人卡片即可切换</p></div>
-          <div><strong>如何开启关怀模式</strong><p>在设置中打开关怀模式，文字会变得更大更清晰</p></div>
+          <div><strong>如何开启清晰模式</strong><p>在设置中打开清晰模式，文字会变得更大更清晰</p></div>
           <div><strong>如何设置提醒</strong><p>进入提醒服务，点击添加提醒并填写时间、类型和重复规则</p></div>
           <div><strong>如何切换普通话 / 粤语 / 台湾腔？</strong><p>在个人中心设置里选择默认方言后保存</p></div>
         </div>
@@ -965,8 +966,8 @@
             <i data-lucide="heart-handshake" style="width:28px;height:28px;stroke-width:1.8"></i>
           </div>
           <div>
-            <h1>智伴暖阳 </h1>
-            <p>数字人陪伴您每一天</p>
+            <h1>智伴同行</h1>
+            <p>数字人陪伴每一个人</p>
           </div>
         </div>
 
@@ -1001,7 +1002,7 @@
           <section class="left-shortcuts">
             <button type="button" onclick="toggleCareMode()">
               <i data-lucide="eye" style="width:18px;height:18px"></i>
-              <span>关怀模式</span>
+              <span>清晰模式</span>
             </button>
             <button type="button" onclick="sendQuickPhrase('帮我查询一下今天的新闻')">
               <i data-lucide="newspaper" style="width:18px;height:18px"></i>
@@ -1094,9 +1095,6 @@
               <i data-lucide="messages-square" style="width:22px;height:22px"></i>
               <h2>对话历史</h2>
             </div>
-            <button onclick="closeDrawers()" aria-label="关闭侧边栏" class="sidebar-close-btn">
-              <i data-lucide="x" style="width:22px;height:22px"></i>
-            </button>
           </div>
 
           <!-- 天气卡 -->
@@ -1163,7 +1161,7 @@
                 <div>
                   <div class="settings-label">
                     <i data-lucide="eye" style="width:16px;height:16px"></i>
-                    <span>关怀模式</span>
+                    <span>清晰模式</span>
                   </div>
                   <p>放大字体，方便阅读</p>
                 </div>
@@ -1267,7 +1265,7 @@
     });
   </script>
 
-  <script src="/static/script.js?v=31"></script>
+  <script src="/static/script.js?v=32"></script>
 </body>
 
 </html>

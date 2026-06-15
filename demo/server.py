@@ -72,7 +72,7 @@ async def _generate_preset_idle_videos():
     if not flashhead_adapter.is_available():
         return
     await asyncio.sleep(3)
-    role_map = {1: "girl", 2: "elderly", 3: "boy"}
+    role_map = {1: "girl", 2: "boy", 3: "boy"}
     _pub = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
     for avatar_id, role in role_map.items():
         if _idle_segment_paths(role):
@@ -172,7 +172,7 @@ def resolve_role(avatar_id):
     if avatar_id == 1:
         return "girl"
     if avatar_id == 2:
-        return "elderly"
+        return "boy"
     if avatar_id == 3:
         return "boy"
     return "girl"
@@ -377,8 +377,8 @@ async def api_calendar():
 
 
 # =============================================================
-#                       家庭联系人 CRUD
-#   后端 contacts.py 是危机告警 / 「联系家属」的数据源，
+#                       联系人 CRUD
+#   后端 contacts.py 是危机告警 / 「联系紧急联系人」的数据源，
 #   前端必须写到这里，否则数字人拿不到真实联系人。
 # =============================================================
 @app.get("/api/contacts")
@@ -524,7 +524,7 @@ async def upload_avatar(
 
     if slot in (1, 2, 3):
         avatar_filenames = {1: "avatar-xiaoli", 2: "avatar-laowang", 3: "avatar-xiaoming"}
-        role_names = {1: "girl", 2: "elderly", 3: "boy"}
+        role_names = {1: "girl", 2: "boy", 3: "boy"}
         fname = f"{avatar_filenames[slot]}.{ext}"
         save_path = os.path.join(_PUBLIC_DIR, fname)
         flashhead_adapter.AVATAR_PORTRAITS[slot] = save_path
@@ -558,7 +558,7 @@ async def get_dialects():
 
 @app.get("/api/idle-video/playlist")
 async def get_idle_video_playlist(role: str = "girl"):
-    allowed_roles = {"girl", "elderly", "boy", "custom"}
+    allowed_roles = {"girl", "boy", "custom"}
     if role not in allowed_roles:
         return JSONResponse({"error": "无效角色"}, status_code=400)
     _pub = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
@@ -684,7 +684,7 @@ async def websocket_chat(websocket: WebSocket):
 
                 if session_risk.needs_full_alert:
                     session_risk.mark_alerted()
-                    contact_action = build_contact_action(current_user_id, "紧急联系家属", action="call")
+                    contact_action = build_contact_action(current_user_id, "紧急联系人", action="call")
                     await safe_send(websocket, {
                         "type": "crisis_alert",
                         "level": level,

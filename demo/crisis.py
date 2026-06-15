@@ -37,7 +37,7 @@ _LLM_MODEL = os.getenv("LLM_MODEL", "Pro/Qwen/Qwen2.5-7B-Instruct")
 LOG_FILE = Path(__file__).resolve().parent / "crisis_log.jsonl"
 
 # ── 第一层A-i：直接方式词（无需 LLM 精判，直接判 high） ──────────────────────
-# 这些词描述具体的自杀方式，在本系统目标人群（老年陪伴场景）中几乎不存在歧义，
+# 这些词描述具体的自杀方式，在通用陪伴场景中也通常不存在歧义，
 # 避免 LLM 超时导致降级漏报。排除词仅对 soft 信号生效，hard/direct_high 均不受影响。
 _DIRECT_HIGH_KEYWORDS = [
     "跳楼", "割腕", "上吊", "服毒", "投河", "吞药",
@@ -74,9 +74,9 @@ _SOFT_KEYWORDS = [
     "我的存在是负担", "我的存在是累赘",
     # 道别信号（仅保留非日常语境的异常道别，移除"记住我""帮我照顾""跟你说再见了"等高频日常词）
     "最后想谢谢你", "和你说最后一次", "把东西都整理好了",
-    # 老年群体特有间接表达（中文临床文献明确点名的隐喻性信号）
+    # 家庭责任与人生阶段相关的间接表达
     "这辈子差不多了", "不想拖累孩子", "不想拖累儿女",
-    # 老年人"去找/见/陪已故配偶"隐语（容忍"我/儿"中缀；语义歧义留给 LLM 结合上下文判）
+    # "去找/见/陪已故伴侣"隐语（容忍"我/儿"中缀；语义歧义留给 LLM 结合上下文判）
     "陪老伴", "陪我老伴", "陪老伴儿", "陪我老伴儿",
     "找老伴", "找我老伴", "见老伴", "见我老伴",
     "去找我先生", "去找我太太", "去找我丈夫", "去找我妻子",
@@ -304,7 +304,7 @@ async def classify_crisis_risk(
         print(f"[crisis] LLM精判失败: {e}")
 
     # LLM 不可用 / 响应无有效 JSON 时的兜底（务必返回 dict，否则调用方解包 None 崩溃）：
-    # hard / classifier 保守判 medium（进关怀模式）；soft 降级 none（避免误报）
+    # hard / classifier 保守判 medium（进危机陪伴模式）；soft 降级 none（避免误报）
     if signal_type in ("hard", "classifier"):
         return {"level": "medium", "score": 0.5, "reason": "LLM不可用，风险信号保守判定"}
     return {"level": "none", "score": 0.0, "reason": "LLM不可用，间接信号降级"}

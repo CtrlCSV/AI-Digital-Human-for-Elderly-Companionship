@@ -1,11 +1,11 @@
-﻿# AI-Digital-Human-for-Elderly-Companionship
+# AI-Digital-Human-Companion-System
 
 
 ---
 
 ## 项目介绍
 
-面向老年人群体的 AI 情感陪伴系统。系统通过大语言模型（LLM）进行多轮对话，结合 Azure TTS 语音合成与 **SoulX-FlashHead** 说话人视频生成技术，实时渲染与用户口型/表情同步的数字人视频，实现自然流畅的人机情感陪伴体验。
+面向所有用户的 AI 情感陪伴系统。系统通过大语言模型（LLM）进行多轮对话，结合 Azure TTS 语音合成与 **SoulX-FlashHead** 说话人视频生成技术，实时渲染与用户口型/表情同步的数字人视频，实现自然流畅的人机情感陪伴体验。
 
 **核心技术栈：**
 
