@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import chromadb
 from dotenv import load_dotenv

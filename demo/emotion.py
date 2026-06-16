@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 # 强制 DeepFace 的 TensorFlow 后端只用 CPU：把整块 GPU 显存让给 FlashHead 视频生成。
 # 必须在 import deepface（会触发 import tensorflow）之前隐藏 GPU，否则 TF 会先抢占显存导致 FlashHead OOM。

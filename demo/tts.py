@@ -1,4 +1,4 @@
-"""
+﻿"""
 Azure AI Speech TTS 引擎
 - generate_audio_bytes_with_visemes(): 完整音频 + viseme 口型时间轴
 - stream_audio_chunks(): 真正流式 yield 音频块
