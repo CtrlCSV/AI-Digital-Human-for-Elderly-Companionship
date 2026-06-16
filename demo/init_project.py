@@ -198,6 +198,13 @@ def warn_vector_db_unavailable(reason: str | None) -> None:
 def ensure_env() -> bool:
     if ENV_FILE.exists():
         ok("找到 .env")
+        missing = [
+            key for key in ("API_KEY", "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION")
+            if not (os.environ.get(key) or "").strip()
+        ]
+        if missing:
+            warn("以下环境变量尚未填写，相关能力会降级或不可用: " + ", ".join(missing))
+            warn("server.py 仍可启动；要启用完整文字回复和语音，请编辑 demo/.env 后重启。")
         return True
     warn("未找到 .env。server.py 可以启动，但 LLM/TTS/FlashHead 需要先配置 API_KEY、AZURE_SPEECH_KEY 等变量。")
     return False

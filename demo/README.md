@@ -1,82 +1,88 @@
-﻿### demo/ 目录说明
+# demo 目录说明
 
-#### 推荐启动流程
+这里是项目主应用目录。常用流程只有两步：
 
-新用户下载仓库后进入 `demo/` 目录，先运行初始化，再启动服务：
-
-```powershell
+```bash
 python init_project.py
 python server.py
 ```
 
-`init_project.py` 会统一检查/准备：Python 依赖、本地 ASR/RAG 模型、PsyQA 知识库、SoulChat 数据与知识库、SOS-1K 危机分类器、SoulX-FlashHead 仓库和 FlashHead 权重。
+然后访问 `http://localhost:8000`。
 
-#### 业务代码
+## 关键文件
 
 | 文件 | 说明 |
-|------|------|
-| `server.py` | FastAPI 主服务，WebSocket 会话管理，TTS + FlashHead 视频流水线 |
-| `llm.py` | LLM 对话逻辑，LangChain + ChromaDB RAG |
-| `tts.py` | Azure TTS 封装，输出 MP3 音频字节 |
-| `flashhead_adapter.py` | SoulX-FlashHead 封装，MP3 音频 -> MP4 说话人视频，支持按情绪选择头像条件图 |
-| `asr.py` | SenseVoice 方言语音识别封装 |
-| `emotion.py` | DeepFace 摄像头表情检测 |
-| `build_kb.py` | 构建 PsyQA ChromaDB 知识库，通常由 `init_project.py` 自动调用 |
-| `build_kb_soulchat.py` | 构建 SoulChat ChromaDB 知识库，通常由 `init_project.py` 自动调用 |
-| `train_crisis_classifier.py` | 训练 SOS-1K 本地危机分类器，通常由 `init_project.py` 自动调用 |
+| --- | --- |
+| `server.py` | FastAPI 主服务，负责 WebSocket、ASR、LLM、TTS、FlashHead 流水线 |
+| `public/` | 前端页面、样式和脚本 |
+| `asr.py` | SenseVoiceSmall 语音识别，支持浏览器录音 WebM/Ogg 转 WAV |
+| `tts.py` | Azure TTS 封装；未配置 Azure Key 时服务仍可启动，播报降级 |
+| `flashhead_adapter.py` | SoulX-FlashHead 适配层，支持相对路径和旧绝对路径回退 |
+| `init_project.py` | 初始化检查，负责依赖、模型、数据和知识库准备 |
+| `build_kb.py` | 构建 PsyQA 知识库 |
+| `build_kb_soulchat.py` | 构建 SoulChat 知识库 |
+| `train_crisis_classifier.py` | 训练本地危机分类器 |
 
-#### 标准目录
+## .env 配置
 
-| 目录/文件 | 说明 | 来源 |
-|-----------|------|------|
-| `models/SenseVoiceSmall/` | SenseVoice 方言语音识别模型 | [FunAudioLLM/SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall) |
-| `models/bge-small-zh-v1.5/` | RAG embedding 模型 | [BAAI/bge-small-zh-v1.5](https://huggingface.co/BAAI/bge-small-zh-v1.5) |
-| `models/crisis-bert/classifier.pkl` | SOS-1K 本地危机分类器 | `train_crisis_classifier.py` |
-| `vector_db/` | ChromaDB 知识库 | `build_kb.py` / `build_kb_soulchat.py` |
-| `datasets/SoulChat/data/*.parquet` | SoulChat 对话数据 | [Spiderman01/soulchat_split_raw](https://huggingface.co/datasets/Spiderman01/soulchat_split_raw) |
-| `../SoulX-FlashHead/` | FlashHead 仓库 + 模型权重 | [Soul-AILab/SoulX-FlashHead](https://github.com/Soul-AILab/SoulX-FlashHead) |
-
-SoulX-FlashHead 标准权重目录（相对于 `demo/`）：
-
-```text
-../SoulX-FlashHead/models/SoulX-FlashHead-1_3B/
-../SoulX-FlashHead/models/wav2vec2-base-960h/
-```
-
-#### 数字人表情
-
-FlashHead 当前接口没有独立的“表情强度”参数，表情主要由条件头像图决定。项目现在支持按情绪自动选择头像变体；把图片放到 `avatars/portraits/` 下即可：
-
-```text
-girl.png
-girl_happy.png
-girl_sad.png
-girl_angry.png
-girl_fear.png
-girl_surprise.png
-girl_disgust.png
-boy.png
-boy_happy.png
-```
-
-如果没有对应情绪图，会自动回退到基础头像，例如 `girl.png`。摄像头识别到用户情绪后，后端会把情绪传给 FlashHead，让数字人使用对应的情绪头像生成说话视频。
-
-#### 环境变量（.env）
-
-路径可以写绝对路径，也可以写相对 `demo/` 或项目根目录的相对路径。旧机器上的绝对路径不存在时，代码会自动回退到上面的标准目录。
+`demo/.env` 使用中文注释和相对路径。必须填写自己的密钥：
 
 ```ini
-API_KEY=                        # LLM API Key（SiliconFlow 或 OpenAI 兼容）
-AZURE_SPEECH_KEY=               # Azure 语音服务密钥
-AZURE_SPEECH_REGION=            # 区域，如 southeastasia
+API_KEY=
+AZURE_SPEECH_KEY=
+AZURE_SPEECH_REGION=southeastasia
+```
 
-ASR_MODEL_ID=FunAudioLLM/SenseVoiceSmall
+路径通常保持默认：
+
+```ini
 ASR_MODEL_PATH=models/SenseVoiceSmall
-ASR_LANGUAGE=auto
-ASR_DEVICE=auto
-
+VECTOR_DB_PATH=vector_db
 FLASHHEAD_REPO_DIR=../SoulX-FlashHead
 FLASHHEAD_CKPT_DIR=../SoulX-FlashHead/models/SoulX-FlashHead-1_3B
 FLASHHEAD_WAV2VEC_DIR=../SoulX-FlashHead/models/wav2vec2-base-960h
-FLASHHEAD_MODEL_TYPE=lite       # lite（单卡）或 pro（需双卡 RTX 5090）
 ```
+
+不要把本机旧绝对路径写进 `.env`。如果确实要自定义路径，可以写相对 `demo/` 或项目根目录的路径。
+
+## 新机器初始化会检查什么
+
+`init_project.py` 会依次检查：
+
+| 项目 | 默认位置 |
+| --- | --- |
+| SenseVoiceSmall | `models/SenseVoiceSmall/` |
+| bge-small-zh-v1.5 | `models/bge-small-zh-v1.5/` |
+| ChromaDB 向量库 | `vector_db/` |
+| SoulChat 数据 | `datasets/SoulChat/data/` |
+| 危机分类器 | `models/crisis-bert/classifier.pkl` |
+| SoulX-FlashHead 仓库 | `../SoulX-FlashHead/` |
+| FlashHead 权重 | `../SoulX-FlashHead/models/SoulX-FlashHead-1_3B/` |
+| wav2vec2 | `../SoulX-FlashHead/models/wav2vec2-base-960h/` |
+
+缺少可自动下载的模型时，脚本会尝试下载。`psy_data.json` 和 SOS-1K 训练数据如果没有放入对应目录，脚本会明确提示。
+
+## 语音与口型链路
+
+前端说话按钮现在走后端 ASR：
+
+1. 浏览器请求麦克风权限。
+2. 使用 `MediaRecorder` 录制 WebM/Ogg 音频。
+3. POST 到 `/asr`。
+4. 后端转为 16 kHz WAV 后交给 SenseVoiceSmall。
+5. 识别文本自动发送到聊天 WebSocket。
+
+回复链路：
+
+1. LLM 生成整句文本。
+2. Azure TTS 合成 MP3。
+3. FlashHead 生成带声音的 MP4。
+4. 前端播放 FlashHead 返回的视频。
+
+可用 `.env` 控制：
+
+```ini
+FLASHHEAD_ENABLED=1
+```
+
+调试时可先设置 `FLASHHEAD_ENABLED=0` 验证 TTS 是否正常。

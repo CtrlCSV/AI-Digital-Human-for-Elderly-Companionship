@@ -1,0 +1,31 @@
+# Notebook GPU runtime dependencies.
+# Keep torch/torchaudio/torchvision out of this file: the ModelScope GPU image
+# already provides a CUDA-enabled PyTorch build.
+
+accelerate
+aiohttp
+azure-cognitiveservices-speech
+chromadb==0.5.3
+deepface
+edge-tts
+fastapi
+funasr
+huggingface_hub
+imageio
+imageio-ffmpeg
+langchain
+langchain-openai
+librosa
+modelscope
+numpy<2
+openai
+opencv-python
+pandas
+peft
+python-dotenv
+requests
+scikit-learn
+sentence-transformers==3.0.1
+soundfile
+tensorflow-cpu
+uvicorn[standard]

@@ -77,10 +77,10 @@ FLASHHEAD_WAV2VEC_DIR = _resolve_config_path(
 )
 FLASHHEAD_MODEL_TYPE = os.environ.get("FLASHHEAD_MODEL_TYPE", "lite")
 
-# avatar_id 1=girl, 3=boy
+# avatar_id 1=girl, 2=boy
 AVATAR_PORTRAITS = {
     1: str(PROJECT_ROOT / "avatars" / "portraits" / "girl.png"),
-    3: str(PROJECT_ROOT / "avatars" / "portraits" / "boy.png"),
+    2: str(PROJECT_ROOT / "avatars" / "portraits" / "boy.png"),
 }
 
 _EMOTION_ALIASES = {

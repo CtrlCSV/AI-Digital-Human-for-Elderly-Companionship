@@ -5,13 +5,13 @@
 const AVATARS = [
   null,
   { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=8' },
+  { id: 2, name: '阿哲', desc: '理性风趣，陪你梳理想法～', skinClass: 'avatar-friend2', welcome: '你好，我是阿哲，想聊生活、工作还是兴趣都可以！', imagePath: '/static/avatar-xiaoming.png?v=3' },
   null,
-  { id: 3, name: '小明', desc: '年轻伙伴，活力陪聊～', skinClass: 'avatar-friend3', welcome: '你好，我是小明，和你聊聊生活、兴趣、好心情！', imagePath: '/static/avatar-xiaoming.png?v=3' },
 ];
 
 const COMPANION_CARDS = [
   { id: 1, name: '小丽', desc: '温柔倾听 · 情绪陪伴', image: '/static/avatar-xiaoli.png?v=8', action: '选择她' },
-  { id: 3, name: '小明', desc: '阳光伙伴 · 活力陪聊', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
+  { id: 2, name: '阿哲', desc: '理性风趣 · 思路整理', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
 ];
 
 const REMINDER_CATEGORIES = [
@@ -215,6 +215,8 @@ const state = {
   ws: null, wsConnected: false, reconnects: 0,
   wsManualClose: false, returnPageAfterUtility: '',
   recording: false, recognition: null,
+  recordingMode: '', mediaRecorder: null, micStream: null, audioChunks: [],
+  voiceStopping: false, voiceMaxTimer: null,
   responseId: null, botChunks: [],
   currentChunkEl: null,
   thinkingEl: null, pressTimer: null, isLongPress: false,
@@ -1686,6 +1688,8 @@ const VideoPlayer = {
   posterEl: null,
   _activeUrl: null,
   _standbyUrl: null,
+  _activeRevoke: false,
+  _standbyRevoke: false,
   _idleUrl: null,
   _idlePlaylist: [],
   _idleIndex: 0,
@@ -1849,10 +1853,15 @@ const VideoPlayer = {
     });
   },
 
-  enqueue(base64Video, responseId, seq) {
+  enqueue(base64Video, responseId, seq, fallbackAudio = '') {
     const blob = base64ToBlob(base64Video, 'video/mp4');
     const url = URL.createObjectURL(blob);
-    this.queue.push({ url, responseId, seq: Number(seq) || 0 });
+    this.enqueueUrl(url, responseId, seq, true, fallbackAudio);
+  },
+
+  enqueueUrl(url, responseId, seq, revokeOnDone = false, fallbackAudio = '') {
+    if (!url) return;
+    this.queue.push({ url, responseId, seq: Number(seq) || 0, revokeOnDone, fallbackAudio });
     this.queue.sort((a, b) => a.seq - b.seq);
     this._preloadNext();
     if (!this.playing) this._playNext();
@@ -1862,10 +1871,11 @@ const VideoPlayer = {
     if (!this.standbyEl || this.queue.length === 0) return;
     const next = this.queue[0];
     if (this._standbyUrl === next.url) return;
-    if (this._standbyUrl) {
+    if (this._standbyUrl && this._standbyRevoke) {
       try { URL.revokeObjectURL(this._standbyUrl); } catch (_) { }
     }
     this._standbyUrl = next.url;
+    this._standbyRevoke = !!next.revokeOnDone;
     this.standbyEl.src = next.url;
     this.standbyEl.load();
   },
@@ -1887,11 +1897,15 @@ const VideoPlayer = {
     const toPlay = this.standbyEl;
     const toHide = this.activeEl;
 
-    if (this._activeUrl && this._activeUrl !== next.url) {
+    if (this._activeUrl && this._activeUrl !== next.url && this._activeRevoke) {
       try { URL.revokeObjectURL(this._activeUrl); } catch (_) { }
     }
     this._activeUrl = next.url;
-    if (this._standbyUrl === next.url) this._standbyUrl = null;
+    this._activeRevoke = !!next.revokeOnDone;
+    if (this._standbyUrl === next.url) {
+      this._standbyUrl = null;
+      this._standbyRevoke = false;
+    }
 
     if (toPlay.src !== next.url) toPlay.src = next.url;
     toPlay.muted = !!state.call.muted;
@@ -1899,10 +1913,15 @@ const VideoPlayer = {
     requestAnimationFrame(() => { toPlay.style.opacity = '1'; });
     toPlay.play().catch(e => {
       console.warn('[VideoPlayer] 播放失败:', e);
+      this._playFallbackAudio(next);
       this._finish();
     });
     toPlay.onended = () => this._finish();
-    toPlay.onerror = () => this._finish();
+    toPlay.onerror = () => {
+      console.warn('[VideoPlayer] 视频加载失败，切换到音频兜底');
+      this._playFallbackAudio(next);
+      this._finish();
+    };
 
     toHide.style.opacity = '0';
     setTimeout(() => { toHide.style.display = 'none'; toHide.pause(); }, 100);
@@ -1910,6 +1929,11 @@ const VideoPlayer = {
     this.activeEl = toPlay;
     this.standbyEl = toHide;
     this._preloadNext();
+  },
+
+  _playFallbackAudio(item) {
+    if (!item || !item.fallbackAudio) return;
+    AudioPlayer.enqueue(item.fallbackAudio, item.responseId, item.seq);
   },
 
   _finish() {
@@ -1928,10 +1952,18 @@ const VideoPlayer = {
       el.style.opacity = '0';
       el.src = '';
     });
-    this.queue.forEach(item => { try { URL.revokeObjectURL(item.url); } catch (_) { } });
+    this.queue.forEach(item => {
+      if (item.revokeOnDone) {
+        try { URL.revokeObjectURL(item.url); } catch (_) { }
+      }
+    });
     this.queue = [];
-    if (this._activeUrl) { try { URL.revokeObjectURL(this._activeUrl); } catch (_) { } this._activeUrl = null; }
-    if (this._standbyUrl) { try { URL.revokeObjectURL(this._standbyUrl); } catch (_) { } this._standbyUrl = null; }
+    if (this._activeUrl && this._activeRevoke) { try { URL.revokeObjectURL(this._activeUrl); } catch (_) { } }
+    if (this._standbyUrl && this._standbyRevoke) { try { URL.revokeObjectURL(this._standbyUrl); } catch (_) { } }
+    this._activeUrl = null;
+    this._standbyUrl = null;
+    this._activeRevoke = false;
+    this._standbyRevoke = false;
     this.playing = false;
     this._turnActive = false;
     this.responseId = null;
@@ -1941,7 +1973,7 @@ const VideoPlayer = {
 
 // ---------------------- 待机视频加载 ----------------------
 async function tryLoadIdleVideo(avatarId) {
-  const roleMap = { 1: 'girl', 3: 'boy', 99: 'custom' };
+  const roleMap = { 1: 'girl', 2: 'boy', 99: 'custom' };
   const role = roleMap[avatarId];
   if (!role) return;
   const playlistUrl = `/api/idle-video/playlist?role=${role}`;
@@ -1976,22 +2008,35 @@ async function pollForIdleVideo(playlistUrl, forAvatarId = 99, maxWaitMs = 36000
 }
 
 // ---------------------- Bot Message Rendering ----------------------
-function createBotBubble(responseId, text) {
+function renderBotBubble(responseId, text) {
+  const normalizedText = String(text || '');
+  if (!normalizedText) return null;
+
   if (state.responseId !== responseId) {
     state.responseId = responseId;
     state.botChunks = [];
     state.currentChunkEl = null;
   }
+
+  if (state.currentChunkEl && state.currentChunkEl.dataset.responseId === String(responseId)) {
+    state.currentChunkEl.textContent = normalizedText;
+    state.botChunks = [normalizedText];
+    scrollToBottom();
+    return state.currentChunkEl;
+  }
+
   const div = document.createElement('div');
   div.className = 'message message-bot';
   div.dataset.responseId = String(responseId);
-  div.textContent = text;
+  div.textContent = normalizedText;
   dom.messagesContainer.appendChild(div);
   state.currentChunkEl = div;
-  state.botChunks.push(text);
+  state.botChunks = [normalizedText];
   scrollToBottom();
   return div;
 }
+
+function createBotBubble(responseId, text) { return renderBotBubble(responseId, text); }
 
 function getBotFullText() { return state.botChunks.join(''); }
 
@@ -2037,14 +2082,15 @@ function handleChunk(d) {
   showThinking(false);
   const rid = d.responseId || state.responseId || `${Date.now()}`;
   const chunkText = (d.text || '').trim();
-  if (chunkText && !state.botChunks.includes(chunkText)) {
-    createBotBubble(rid, chunkText);
-  }
-  if (d.video) {
+  const audio = d.data || d.audio;
+  if (chunkText) renderBotBubble(rid, chunkText);
+  if (d.videoUrl) {
     setStatus(STATUS.speaking);
-    VideoPlayer.enqueue(d.video, rid, d.seq);
+    VideoPlayer.enqueueUrl(d.videoUrl, rid, d.seq, false, audio);
+  } else if (d.video) {
+    setStatus(STATUS.speaking);
+    VideoPlayer.enqueue(d.video, rid, d.seq, audio);
   } else {
-    const audio = d.data || d.audio;
     if (audio) {
       setStatus(STATUS.playAudio);
       AudioPlayer.enqueue(audio, rid, d.seq);
@@ -2059,7 +2105,7 @@ const msgHandlers = {
     showThinking(false);
     const rid = d.responseId || state.responseId || `${Date.now()}`;
     const delta = d.delta || d.text || '';
-    if (delta) createBotBubble(rid, delta);
+    if (delta) renderBotBubble(rid, delta);
   },
   turn_start(d) {
     showThinking(false);
@@ -2870,6 +2916,132 @@ function initVoiceRecognition() {
   _SRConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
 }
 
+function getVoiceButton() {
+  return document.getElementById('centerVoiceBtn');
+}
+
+function renderVoiceButton(mode = 'idle') {
+  const btn = getVoiceButton();
+  if (!btn) return;
+  btn.classList.remove('recording', 'pressing');
+  if (mode === 'recording') {
+    btn.classList.add('recording');
+    btn.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">再点一下发送</span>';
+    return;
+  }
+  if (mode === 'transcribing') {
+    btn.innerHTML = '<span style="font-weight:600;font-size:0.95rem">正在识别...</span>';
+    return;
+  }
+  btn.innerHTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">点一下说话</span></div>`;
+}
+
+function pickRecorderMimeType() {
+  if (!window.MediaRecorder) return '';
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+  ];
+  return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function beginVoiceBargeIn() {
+  state.bargeInActive = true;
+  wsSend({ type: 'barge_in_start', timestamp: Date.now() });
+  VideoPlayer.reset();
+  AudioPlayer.reset();
+  setStatus(STATUS.listening);
+}
+
+function cleanupMediaRecorder() {
+  clearTimeout(state.voiceMaxTimer);
+  state.voiceMaxTimer = null;
+  if (state.micStream) {
+    state.micStream.getTracks().forEach(track => track.stop());
+  }
+  state.micStream = null;
+  state.mediaRecorder = null;
+}
+
+async function transcribeAndSendVoice(blob) {
+  if (!blob || blob.size === 0) {
+    showToast('没有录到声音，请再试一次', 'warning');
+    return;
+  }
+  renderVoiceButton('transcribing');
+  setStatus(STATUS.genReply);
+  try {
+    const res = await fetch('/asr', {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+      body: blob,
+    });
+    const data = await res.json();
+    const text = (data.result || '').trim();
+    if (!text || text.startsWith('识别错误') || text.includes('识别过程出错')) {
+      showToast(text || '没有识别到语音，请再试一次', 'warning');
+      setStatus(STATUS.online);
+      return;
+    }
+    dom.messageInput.value = text;
+    setTimeout(() => { if (dom.messageInput.value.trim()) sendMessage(); }, 50);
+  } catch (e) {
+    showToast('语音识别请求失败，请检查后端服务', 'warning');
+    setStatus(STATUS.online);
+  } finally {
+    stopVoiceUI();
+  }
+}
+
+async function startBackendVoiceRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return false;
+  const mimeType = pickRecorderMimeType();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        noiseSuppression: true,
+        echoCancellation: true,
+      },
+    });
+    state.micStream = stream;
+    state.audioChunks = [];
+    state.recordingMode = 'media';
+    state.voiceStopping = false;
+
+    const options = mimeType ? { mimeType } : undefined;
+    const recorder = new MediaRecorder(stream, options);
+    state.mediaRecorder = recorder;
+    recorder.ondataavailable = event => {
+      if (event.data && event.data.size > 0) state.audioChunks.push(event.data);
+    };
+    recorder.onerror = () => {
+      showToast('录音失败，请检查麦克风权限', 'warning');
+      stopVoiceUI();
+      cleanupMediaRecorder();
+    };
+    recorder.onstop = () => {
+      const type = recorder.mimeType || mimeType || 'audio/webm';
+      const blob = new Blob(state.audioChunks, { type });
+      state.audioChunks = [];
+      cleanupMediaRecorder();
+      transcribeAndSendVoice(blob);
+    };
+
+    beginVoiceBargeIn();
+    state.recording = true;
+    renderVoiceButton('recording');
+    recorder.start(250);
+    state.voiceMaxTimer = setTimeout(() => stopVoiceRecording(), 60000);
+    return true;
+  } catch (e) {
+    cleanupMediaRecorder();
+    return false;
+  }
+}
+
 function createRecognitionInstance() {
   if (!_SRConstructor) return null;
   const rec = new _SRConstructor();
@@ -2877,12 +3049,9 @@ function createRecognitionInstance() {
   rec.interimResults = false;
   rec.lang = 'zh-CN';
   rec.onstart = () => {
+    state.recordingMode = 'speech';
     state.recording = true;
-    state.bargeInActive = true;
-    wsSend({ type: 'barge_in_start', timestamp: Date.now() });
-    VideoPlayer.reset();
-    AudioPlayer.reset();
-    setStatus(STATUS.listening);
+    beginVoiceBargeIn();
   };
   rec.onresult = (e) => {
     dom.messageInput.value = e.results[0][0].transcript;
@@ -2899,25 +3068,25 @@ function createRecognitionInstance() {
 
 function stopVoiceUI() {
   state.recording = false;
-  const btn = document.getElementById('centerVoiceBtn');
-  if (btn) {
-    btn.classList.remove('recording', 'pressing');
-    btn.innerHTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">点一下说话</span></div>`;
-  }
+  state.recordingMode = '';
+  state.voiceStopping = false;
+  clearTimeout(state.voiceMaxTimer);
+  state.voiceMaxTimer = null;
+  renderVoiceButton('idle');
 }
 
-function startVoiceRecording() {
+async function startVoiceRecording() {
   if (state.recording) return;
-  const btn = document.getElementById('centerVoiceBtn');
-  if (btn) {
-    btn.classList.add('recording');
-    btn.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">再点一下发送</span>';
-  }
+  const started = await startBackendVoiceRecording();
+  if (started) return;
+
+  renderVoiceButton('recording');
   if (!_SRConstructor) {
-    showToast('您的浏览器不支持语音识别功能', 'warning');
+    showToast('浏览器无法录音或未授权麦克风，请检查权限后重试', 'warning');
     stopVoiceUI();
     return;
   }
+  state.recordingMode = 'speech';
   state.recognition = createRecognitionInstance();
   try {
     state.recognition.start();
@@ -2929,11 +3098,27 @@ function startVoiceRecording() {
 
 function stopVoiceRecording() {
   clearTimeout(state.pressTimer);
-  const btn = document.getElementById('centerVoiceBtn');
+  const btn = getVoiceButton();
   if (btn) btn.classList.remove('pressing');
   state.isLongPress = false;
-  if (state.recognition) { try { state.recognition.stop(); } catch (_) { stopVoiceUI(); } }
-  else stopVoiceUI();
+  if (state.recordingMode === 'media' && state.mediaRecorder) {
+    if (state.voiceStopping) return;
+    state.voiceStopping = true;
+    try {
+      if (state.mediaRecorder.state !== 'inactive') {
+        state.mediaRecorder.stop();
+        return;
+      }
+    } catch (_) { }
+    cleanupMediaRecorder();
+    stopVoiceUI();
+    return;
+  }
+  if (state.recognition) {
+    try { state.recognition.stop(); } catch (_) { stopVoiceUI(); }
+  } else {
+    stopVoiceUI();
+  }
 }
 
 function toggleVoiceRecording() {

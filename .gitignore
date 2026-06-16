@@ -156,5 +156,13 @@ desktop.ini
 *.old
 .cache/
 
+# Local runtime output and probe artifacts
+*.out
+*.err
+demo/chroma_probe/
+demo/sqlite_probe.sqlite3*
+demo/vector_db_broken_*/
+demo/datasets/
+
 # HuggingFace 缓存
 .cache/
