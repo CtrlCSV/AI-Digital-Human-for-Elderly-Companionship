@@ -166,3 +166,8 @@ demo/datasets/
 
 # HuggingFace 缓存
 .cache/
+
+
+#缓存
+_verify/
+技术文档.md
