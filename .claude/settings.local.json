@@ -14,7 +14,16 @@
       "Read(//d/数字人/**)",
       "Bash(npm init *)",
       "Bash(npm install *)",
-      "Bash(node shot.js)"
+      "Bash(node shot.js)",
+      "Bash(ls -la \"C:\\\\Users\\\\牛一强\\\\.cache\\\\huggingface\\\\hub\\\\models--FunAudioLLM--SenseVoiceSmall\\\\snapshots\\\\716d31dbfd64b40152f3399a720890b005ffaf90\\\\\")",
+      "Read(//c/Users/牛一强/.cache/huggingface/hub/models--FunAudioLLM--SenseVoiceSmall/snapshots/**)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.cache\\\\huggingface\\\\hub\\\\models--FunAudioLLM--SenseVoiceSmall\\\\snapshots\\\\716d31dbfd64b40152f3399a720890b005ffaf90\\\\\" | Format-Table Name, Length, LinkType, Target -AutoSize)",
+      "Bash(python -)",
+      "Bash(python _gen_nb.py)",
+      "Bash(rm -f _gen_nb.py)",
+      "mcp__claude_ai_Hugging_Face__hub_repo_details",
+      "WebFetch(domain:api.github.com)",
+      "Bash(gh release *)"
     ]
   }
 }

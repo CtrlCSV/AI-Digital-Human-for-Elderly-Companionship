@@ -4,13 +4,13 @@
 
 const AVATARS = [
   null,
-  { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=8' },
+  { id: 1, name: '小丽', desc: '温柔可爱，陪你聊天～', skinClass: 'avatar-friend1', welcome: '你好呀～我是小丽，很高兴认识你！', imagePath: '/static/avatar-xiaoli.png?v=11', thumbPath: '/static/avatar-xiaoli-face.png?v=10', stageFit: 'contain' },
   null,
   { id: 3, name: '小明', desc: '年轻伙伴，活力陪聊～', skinClass: 'avatar-friend3', welcome: '你好，我是小明，和你聊聊生活、兴趣、好心情！', imagePath: '/static/avatar-xiaoming.png?v=3' },
 ];
 
 const COMPANION_CARDS = [
-  { id: 1, name: '小丽', desc: '温柔倾听 · 情绪陪伴', image: '/static/avatar-xiaoli.png?v=8', action: '选择她' },
+  { id: 1, name: '小丽', desc: '温柔倾听 · 情绪陪伴', image: '/static/avatar-xiaoli-face.png?v=10', action: '选择她' },
   { id: 3, name: '小明', desc: '阳光伙伴 · 活力陪聊', image: '/static/avatar-xiaoming.png?v=3', action: '选择他' },
 ];
 
@@ -2319,6 +2319,8 @@ const Camera = {
 // ---------------------- Avatar Video Area ----------------------
 function initAvatarVideoArea(avatar) {
   const container = document.getElementById('digitalHumanArea');
+  // 全身像（如小丽）用 contain 完整显示上半身与双手；头肩特写用默认 cover 铺满
+  container.classList.toggle('stage-contain', !!(avatar && avatar.stageFit === 'contain'));
   container.innerHTML = `
     <div id="breathingLight" class="breathing-light"></div>
     <div id="avatarStatus" class="avatar-status"><span id="statusText">在线</span></div>
@@ -2862,83 +2864,199 @@ function updateTimeGreeting() {
   if (profileUserNameEl) profileUserNameEl.textContent = displayName;
 }
 
-// ---------------------- Voice Recognition ----------------------
-let _SRConstructor = null;
+// ---------------------- Voice Recognition (backend ASR via /asr) ----------------------
+// 浏览器自带的 webkitSpeechRecognition 走 Google 语音服务器，国内连不通，
+// 所以这里改用 MediaRecorder 录音 -> 浏览器内转 16k 单声道 WAV -> POST /asr（SenseVoice）。
+let _mediaRecorder = null;
+let _mediaStream = null;
+let _audioChunks = [];
 
 function initVoiceRecognition() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
-  _SRConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  state.voiceSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 }
 
-function createRecognitionInstance() {
-  if (!_SRConstructor) return null;
-  const rec = new _SRConstructor();
-  rec.continuous = false;
-  rec.interimResults = false;
-  rec.lang = 'zh-CN';
-  rec.onstart = () => {
-    state.recording = true;
-    state.bargeInActive = true;
-    wsSend({ type: 'barge_in_start', timestamp: Date.now() });
-    VideoPlayer.reset();
-    AudioPlayer.reset();
-    setStatus(STATUS.listening);
-  };
-  rec.onresult = (e) => {
-    dom.messageInput.value = e.results[0][0].transcript;
-    setTimeout(() => { if (dom.messageInput.value.trim()) sendMessage(); }, 100);
-  };
-  rec.onerror = (e) => {
-    stopVoiceUI();
-    setStatus(STATUS.online);
-    if (e.error !== 'no-speech') showToast('语音识别失败，请重试', 'warning');
-  };
-  rec.onend = () => { stopVoiceUI(); setStatus(STATUS.online); };
-  return rec;
+const VOICE_IDLE_HTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">点一下说话</span></div>`;
+const VOICE_RECORDING_HTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">再点一下发送</span>';
+
+function releaseMicStream() {
+  if (_mediaStream) {
+    try { _mediaStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    _mediaStream = null;
+  }
 }
 
 function stopVoiceUI() {
   state.recording = false;
+  state.voiceStarting = false;
   const btn = document.getElementById('centerVoiceBtn');
   if (btn) {
     btn.classList.remove('recording', 'pressing');
-    btn.innerHTML = `<div id="voiceIdleState" class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="font-medium text-base whitespace-nowrap">点一下说话</span></div>`;
+    btn.innerHTML = VOICE_IDLE_HTML;
   }
 }
 
-function startVoiceRecording() {
-  if (state.recording) return;
+function pickAudioMime() {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return '';
+}
+
+async function startVoiceRecording() {
+  if (state.recording || state.voiceStarting) return;
+  if (!state.voiceSupported) {
+    showToast('您的浏览器不支持录音功能', 'warning');
+    return;
+  }
+  state.voiceStarting = true;
+  try {
+    _mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    state.voiceStarting = false;
+    showToast('无法使用麦克风，请在浏览器允许麦克风权限', 'warning');
+    return;
+  }
+
   const btn = document.getElementById('centerVoiceBtn');
   if (btn) {
     btn.classList.add('recording');
-    btn.innerHTML = '<div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><span style="font-weight:600;font-size:0.95rem;margin-left:6px">再点一下发送</span>';
+    btn.innerHTML = VOICE_RECORDING_HTML;
   }
-  if (!_SRConstructor) {
-    showToast('您的浏览器不支持语音识别功能', 'warning');
-    stopVoiceUI();
-    return;
-  }
-  state.recognition = createRecognitionInstance();
+  state.recording = true;
+  state.voiceStarting = false;
+  state.bargeInActive = true;
+  wsSend({ type: 'barge_in_start', timestamp: Date.now() });
+  VideoPlayer.reset();
+  AudioPlayer.reset();
+  setStatus(STATUS.listening);
+
+  _audioChunks = [];
+  const mimeType = pickAudioMime();
   try {
-    state.recognition.start();
+    _mediaRecorder = mimeType ? new MediaRecorder(_mediaStream, { mimeType }) : new MediaRecorder(_mediaStream);
   } catch (_) {
-    showToast('语音识别暂时不可用', 'warning');
-    stopVoiceUI();
+    _mediaRecorder = new MediaRecorder(_mediaStream);
   }
+  _mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) _audioChunks.push(e.data); };
+  _mediaRecorder.onstop = onRecordingStop;
+  _mediaRecorder.start();
 }
 
 function stopVoiceRecording() {
   clearTimeout(state.pressTimer);
-  const btn = document.getElementById('centerVoiceBtn');
-  if (btn) btn.classList.remove('pressing');
   state.isLongPress = false;
-  if (state.recognition) { try { state.recognition.stop(); } catch (_) { stopVoiceUI(); } }
-  else stopVoiceUI();
+  if (!state.recording) { releaseMicStream(); stopVoiceUI(); return; }
+  state.recording = false;
+  const btn = document.getElementById('centerVoiceBtn');
+  if (btn) {
+    btn.classList.remove('pressing');
+    btn.innerHTML = '<span style="font-weight:600;font-size:0.95rem">识别中…</span>';
+  }
+  setStatus(STATUS.thinking);
+  if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+    try { _mediaRecorder.stop(); } catch (_) { onRecordingStop(); }
+  } else {
+    onRecordingStop();
+  }
+}
+
+async function onRecordingStop() {
+  releaseMicStream();
+  const chunks = _audioChunks;
+  _audioChunks = [];
+  if (!chunks.length) { stopVoiceUI(); setStatus(STATUS.online); return; }
+  try {
+    const blob = new Blob(chunks, { type: chunks[0].type || 'audio/webm' });
+    const wav = await blobToWav16k(blob);
+    const resp = await fetch('/asr', { method: 'POST', body: wav });
+    const data = await resp.json();
+    const text = (data && data.result ? String(data.result) : '').trim();
+    if (text && !text.startsWith('识别错误') && !text.startsWith('识别过程出错')) {
+      stopVoiceUI();
+      dom.messageInput.value = text;
+      sendMessage();
+    } else {
+      stopVoiceUI();
+      setStatus(STATUS.online);
+      showToast(text ? '没听清，请再说一遍' : '没有听到声音，请再说一遍', 'warning');
+    }
+  } catch (err) {
+    stopVoiceUI();
+    setStatus(STATUS.online);
+    showToast('语音识别失败，请重试', 'warning');
+  }
 }
 
 function toggleVoiceRecording() {
   if (state.recording) stopVoiceRecording();
   else startVoiceRecording();
+}
+
+// ---- 浏览器内把录音（webm/opus 等）解码并编码成 16k 单声道 16bit WAV ----
+async function blobToWav16k(blob) {
+  const arrayBuf = await blob.arrayBuffer();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioCtx();
+  let decoded;
+  try {
+    decoded = await ctx.decodeAudioData(arrayBuf);
+  } finally {
+    try { ctx.close(); } catch (_) {}
+  }
+  return encodeWav(decoded, 16000);
+}
+
+function encodeWav(audioBuffer, targetRate) {
+  const numCh = audioBuffer.numberOfChannels;
+  const srcRate = audioBuffer.sampleRate;
+  const len = audioBuffer.length;
+  const mono = new Float32Array(len);
+  for (let c = 0; c < numCh; c++) {
+    const data = audioBuffer.getChannelData(c);
+    for (let i = 0; i < len; i++) mono[i] += data[i] / numCh;
+  }
+  const samples = srcRate === targetRate ? mono : resampleLinear(mono, srcRate, targetRate);
+
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  const dataLen = samples.length * 2;
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataLen, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);            // PCM
+  view.setUint16(22, 1, true);            // mono
+  view.setUint32(24, targetRate, true);
+  view.setUint32(28, targetRate * 2, true); // byte rate
+  view.setUint16(32, 2, true);            // block align
+  view.setUint16(34, 16, true);           // bits per sample
+  writeStr(36, 'data');
+  view.setUint32(40, dataLen, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+function resampleLinear(input, srcRate, targetRate) {
+  const ratio = srcRate / targetRate;
+  const outLen = Math.floor(input.length / ratio);
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const pos = i * ratio;
+    const idx = Math.floor(pos);
+    const frac = pos - idx;
+    const a = input[idx] || 0;
+    const b = input[idx + 1] !== undefined ? input[idx + 1] : a;
+    out[i] = a + (b - a) * frac;
+  }
+  return out;
 }
 
 // ---------------------- Page Navigation ----------------------
@@ -2954,9 +3072,12 @@ async function selectAvatar(id) {
   dom.botName.textContent = state.avatar.name;
   dom.botDesc.textContent = state.avatar.desc;
 
+  // 圆形头像（气泡 / 名牌 / 左栏）统一用脸部缩略图，避免全身像只露出躯干
+  const thumbPath = state.avatar.thumbPath || state.avatar.imagePath;
+
   // 聊天气泡头像（CSS 变量驱动 .message-bot::before）
-  if (state.avatar.imagePath) {
-    document.documentElement.style.setProperty('--bot-avatar-url', `url('${state.avatar.imagePath}')`);
+  if (thumbPath) {
+    document.documentElement.style.setProperty('--bot-avatar-url', `url('${thumbPath}')`);
   }
 
   // 旧接口兼容（avatarContainer 隐藏在 DOM 里仍用于部分逻辑）
@@ -2967,15 +3088,15 @@ async function selectAvatar(id) {
 
   // 顶栏名牌头像
   const badgeAvatar = document.getElementById('botBadgeAvatar');
-  if (badgeAvatar && state.avatar.imagePath) {
-    badgeAvatar.style.backgroundImage = `url('${state.avatar.imagePath}')`;
+  if (badgeAvatar && thumbPath) {
+    badgeAvatar.style.backgroundImage = `url('${thumbPath}')`;
     badgeAvatar.style.backgroundSize = 'cover';
     badgeAvatar.style.backgroundPosition = 'center';
     badgeAvatar.textContent = '';
   }
   const leftAvatar = document.getElementById('botLeftAvatar');
-  if (leftAvatar && state.avatar.imagePath) {
-    leftAvatar.style.backgroundImage = `url('${state.avatar.imagePath}')`;
+  if (leftAvatar && thumbPath) {
+    leftAvatar.style.backgroundImage = `url('${thumbPath}')`;
   }
   const leftName = document.getElementById('botLeftName');
   if (leftName) leftName.textContent = state.avatar.name || '';

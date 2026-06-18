@@ -77,6 +77,12 @@ FLASHHEAD_WAV2VEC_DIR = _resolve_config_path(
 )
 FLASHHEAD_MODEL_TYPE = os.environ.get("FLASHHEAD_MODEL_TYPE", "lite")
 
+# 远端模式：设置 FLASHHEAD_REMOTE_URL（例如 Colab 的 cloudflared/ngrok 公网地址）后，
+# 所有视频生成都转发到云端 GPU，本地无需 torch / 模型权重。
+FLASHHEAD_REMOTE_URL = (os.environ.get("FLASHHEAD_REMOTE_URL") or "").strip().rstrip("/")
+FLASHHEAD_REMOTE_TIMEOUT = float(os.environ.get("FLASHHEAD_REMOTE_TIMEOUT", "900"))
+_remote_available = None  # None=未检测, True/False=上次健康检查结果
+
 # avatar_id 1=girl, 3=boy
 AVATAR_PORTRAITS = {
     1: str(PROJECT_ROOT / "avatars" / "portraits" / "girl.png"),
@@ -222,6 +228,82 @@ def _portrait_for_emotion(avatar_id: int, emotion: str | None) -> tuple[str, str
     if neutral_candidate.is_file():
         return str(neutral_candidate), "neutral"
     return str(base), "neutral"
+# ----------------------------- 远端模式 -----------------------------
+def _remote_enabled() -> bool:
+    return bool(FLASHHEAD_REMOTE_URL)
+
+
+def _remote_health() -> bool:
+    """检查云端服务是否可用。成功后缓存，失败下次重试。"""
+    global _remote_available
+    if _remote_available:
+        return True
+    import requests
+    try:
+        r = requests.get(f"{FLASHHEAD_REMOTE_URL}/health", timeout=10)
+        _remote_available = bool(r.ok and r.json().get("available"))
+        if _remote_available:
+            print(f"[FlashHead] 已连接云端服务: {FLASHHEAD_REMOTE_URL}")
+        else:
+            print(f"[FlashHead] 云端服务返回不可用: {FLASHHEAD_REMOTE_URL}")
+    except Exception as e:
+        print(f"[FlashHead] 云端健康检查失败: {e}")
+        _remote_available = False
+    return _remote_available
+
+
+def _remote_audio_to_video(audio_bytes: bytes, avatar_id: int, emotion: str | None) -> bytes | None:
+    import requests
+    portrait_path, emotion_key = _portrait_for_emotion(avatar_id, emotion)
+    if not os.path.isfile(portrait_path):
+        print(f"[FlashHead] 人像不存在: {portrait_path}")
+        return None
+    try:
+        with open(portrait_path, "rb") as f:
+            portrait_bytes = f.read()
+        files = {
+            "portrait": (os.path.basename(portrait_path), portrait_bytes, "application/octet-stream"),
+            "audio": ("audio.wav", audio_bytes, "application/octet-stream"),
+        }
+        data = {"avatar_id": str(avatar_id), "emotion": emotion_key}
+        r = requests.post(
+            f"{FLASHHEAD_REMOTE_URL}/talking_head",
+            files=files, data=data, timeout=FLASHHEAD_REMOTE_TIMEOUT,
+        )
+        if r.ok and r.content:
+            return r.content
+        print(f"[FlashHead] 云端生成失败 status={r.status_code}: {r.text[:200]}")
+        return None
+    except Exception as e:
+        print(f"[FlashHead] 云端请求异常: {e}")
+        return None
+
+
+def _remote_idle_videos(portrait_path: str, count: int, duration_sec: float) -> list:
+    import base64
+    import requests
+    portrait_abs = os.path.abspath(portrait_path)
+    if not os.path.isfile(portrait_abs):
+        print(f"[FlashHead-Idle] 人像不存在: {portrait_abs}")
+        return []
+    try:
+        with open(portrait_abs, "rb") as f:
+            portrait_bytes = f.read()
+        files = {"portrait": (os.path.basename(portrait_abs), portrait_bytes, "application/octet-stream")}
+        data = {"count": str(count), "duration_sec": str(duration_sec)}
+        r = requests.post(
+            f"{FLASHHEAD_REMOTE_URL}/idle",
+            files=files, data=data, timeout=FLASHHEAD_REMOTE_TIMEOUT,
+        )
+        if not r.ok:
+            print(f"[FlashHead-Idle] 云端生成失败 status={r.status_code}: {r.text[:200]}")
+            return []
+        return [base64.b64decode(v) for v in r.json().get("videos", [])]
+    except Exception as e:
+        print(f"[FlashHead-Idle] 云端请求异常: {e}")
+        return []
+
+
 def _setup_avatar(avatar_id: int, emotion: str | None = None) -> bool:
     """Set the condition image for the selected avatar and emotion portrait."""
     global _current_avatar_id
@@ -424,6 +506,8 @@ def generate_idle_video_from_portrait(portrait_path: str, duration_sec: float = 
 def generate_idle_videos_from_portrait(portrait_path: str, count: int = 3, duration_sec: float = 6.0) -> list:
     """Generate multiple silent idle videos from a portrait image."""
     global _current_avatar_id
+    if _remote_enabled():
+        return _remote_idle_videos(portrait_path, count, duration_sec)
     with _flash_lock:
         original_cwd = os.getcwd()
         try:
@@ -472,6 +556,9 @@ def audio_to_video_mp4(audio_bytes: bytes, avatar_id: int, emotion: str | None =
     if not audio_bytes:
         return None
 
+    if _remote_enabled():
+        return _remote_audio_to_video(audio_bytes, avatar_id, emotion)
+
     with _flash_lock:
         original_cwd = os.getcwd()
         try:
@@ -518,6 +605,8 @@ def reset_avatar_cache():
 
 
 def is_available() -> bool:
+    if _remote_enabled():
+        return _remote_health()
     return _check_available()
 
 

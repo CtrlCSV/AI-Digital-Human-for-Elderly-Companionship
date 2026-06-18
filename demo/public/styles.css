@@ -88,6 +88,8 @@
   min-height: 310px;
   display: block;
   object-fit: cover;
+  object-position: center top;
+  background: #F7F0DE;
 }
 
 .auth-form-panel {
@@ -2014,6 +2016,18 @@
   object-position: center top;
 }
 
+/* 全身像（小丽）：用 contain 完整显示整个上半身与双手，不被裁切；
+   背景填照片同色奶油底，左右留白与照片自带边缘无缝衔接。 */
+.digital-human-container.video-avatar-stage.stage-contain {
+  background: #F7F0DE;
+}
+
+.digital-human-container.video-avatar-stage.stage-contain video,
+.digital-human-container.video-avatar-stage.stage-contain .avatar-poster {
+  object-fit: contain;
+  object-position: center;
+}
+
 #digitalHumanArea #avatarStatus {
   bottom: 18px;
   z-index: 6;
@@ -3186,7 +3200,7 @@ body.care-mode .session-item {
   height: 84px;
   margin: 0 auto 14px;
   border-radius: 50%;
-  background: var(--bot-avatar-url, url('/static/avatar-xiaoli.png?v=8')) center / cover no-repeat;
+  background: var(--bot-avatar-url, url('/static/avatar-xiaoli-face.png?v=10')) center / cover no-repeat;
   box-shadow: 0 10px 24px rgba(30, 41, 59, 0.16);
 }
 
