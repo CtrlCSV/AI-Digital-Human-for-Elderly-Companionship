@@ -1,217 +1,133 @@
-# AI-Digital-Human-Companion-System
+# AI Digital Human Companion System
 
+面向情感陪伴场景的数字人聊天系统。后端使用 FastAPI + WebSocket，前端为原生 HTML/CSS/JS；对话由 OpenAI 兼容 LLM 生成，语音由 Azure TTS 合成，口型视频由 SoulX-FlashHead 生成，语音输入由本地 SenseVoiceSmall 识别。
 
----
+## 功能概览
 
-## 项目介绍
+| 模块 | 说明 |
+| --- | --- |
+| 文字对话 | OpenAI 兼容接口，默认配置 SiliconFlow |
+| 语音输入 | 浏览器录音后提交到后端 SenseVoiceSmall 识别 |
+| 语音回复 | Azure AI Speech TTS |
+| 数字人口型 | SoulX-FlashHead 音频驱动 MP4 视频 |
+| 情绪感知 | 摄像头帧经 DeepFace 分析后影响回复与头像变体 |
+| 知识库 | ChromaDB + bge-small-zh-v1.5，支持 PsyQA / SoulChat |
+| 提醒与联系人 | 本地 JSON 存储，按用户隔离 |
 
-面向所有用户的 AI 情感陪伴系统。系统通过大语言模型（LLM）进行多轮对话，结合 Azure TTS 语音合成与 **SoulX-FlashHead** 说话人视频生成技术，实时渲染与用户口型/表情同步的数字人视频，实现自然流畅的人机情感陪伴体验。
+## 快速启动
 
-**核心技术栈：**
-
-| 模块 | 技术 |
-|------|------|
-| 对话 | LLM（OpenAI 兼容接口）+ LangChain + ChromaDB 知识库 |
-| 语音识别 | SenseVoiceSmall（开源方言 ASR） |
-| 语音合成 | Azure TTS |
-| 方言合成 | Azure 内置方言声音（普通话 / 粤语 / 台湾腔，无需参考音频） |
-| 数字人渲染 | SoulX-FlashHead（音频驱动说话人视频，Lite 模型 96FPS） |
-| 空闲动画 | FlashHead 静音预生成循环待机视频 |
-| 情绪感知 | DeepFace 实时摄像头表情分析 |
-| 后端 | FastAPI + WebSocket |
-| 前端 | 原生 HTML/CSS/JS，双缓冲 VideoPlayer + 空闲视频循环 |
-
-**新增功能（参考 LiveTalking 架构集成）：**
-
-| 功能 | 说明 |
-|------|------|
-| 方言切换 | 界面一键切换普通话 / 粤语 / 台湾腔，无需参考音频 |
-| 说话被打断 | 用户开口即刻中断数字人，零延迟响应 |
-| 空闲动画 | 不说话时播放循环待机视频（自动预生成，无需配置） |
-| 自定义形象 | 上传自己的照片作为数字人头像 |
-| 多并发 | 每个 WebSocket 连接独立会话，互不干扰 |
-
----
-
-## 快速部署
-
-### 1. 克隆本仓库
-
-```bash
-cd 目标文件夹目录
-git clone https://github.com/CtrlCSV/Digital-Human-Companion-System
-cd Digital-Human-Companion-System
-```
-
-### 2. 初始化项目
-
-进入 `demo/` 后运行统一初始化脚本。脚本会自动检查/准备 ASR、RAG、SoulChat、危机分类器以及 SoulX-FlashHead 仓库和权重。
+推荐在 Windows PowerShell、Linux 或 macOS 终端中执行：
 
 ```bash
 cd demo
 python init_project.py
+python server.py
 ```
 
-### 3. 模型与数据说明（仓库内**不包含**这些大文件，需自行下载）
-
-> **重要**：本仓库 `.gitignore` 排除了所有模型权重、数据集、向量库等大文件，必须按下面步骤自行获取。
-
-#### 3.1 SoulX-FlashHead 视频生成模型（约 10GB）
-
-国内使用 HuggingFace 镜像加速：
-
-```bash
-# Linux / macOS
-export HF_ENDPOINT=https://hf-mirror.com
-# Windows PowerShell
-$env:HF_ENDPOINT = "https://hf-mirror.com"
-
-pip install "huggingface_hub[cli]"
-
-cd ../SoulX-FlashHead
-
-# 主模型（约 10GB，含 Model_Lite/Model_Pro/VAE_LTX/VAE_Wan 子目录）
-huggingface-cli download Soul-AILab/SoulX-FlashHead-1_3B \
-    --local-dir ./models/SoulX-FlashHead-1_3B \
-    --repo-type model
-
-# 音频编码器（约 400MB）
-huggingface-cli download facebook/wav2vec2-base-960h \
-    --local-dir ./models/wav2vec2-base-960h
-```
-
-下载完成后验证目录结构应包含 `Model_Lite/`、`VAE_LTX/` 等子目录，不能只有顶层文件。
-
-> **降级模式**：若 SoulX-FlashHead 未就绪，系统自动降级为纯音频模式（仅 TTS，无视频）。
-
-#### 3.2 SenseVoice 方言语音识别模型
-
-项目已改用 `FunAudioLLM/SenseVoiceSmall`。通常不需要手动下载，`python init_project.py` 会自动放到：
+启动后访问：
 
 ```text
-demo/models/SenseVoiceSmall/
+http://localhost:8000
 ```
 
-#### 3.3 心理问答数据集（构建知识库用）
+`init_project.py` 会检查依赖、本地模型、知识库、SoulChat 数据、危机分类器、SoulX-FlashHead 仓库和权重。缺少可自动下载的内容时会尝试补齐；缺少需要人工提供的数据时会在终端给出提示。
 
-从 [thu-coai/PsyQA](https://github.com/thu-coai/PsyQA "中文心理健康支持问答数据集") 下载，重命名为 `psy_data.json` 放到 `demo/` 目录下。
+## 环境准备
 
-### 4. 填写环境变量
-
-编辑 `demo/.env`，填入真实凭据（路径相关配置已由代码自动推导，无需填写）：
-
-```ini
-# SiliconFlow / OpenAI 兼容的 LLM API Key
-API_KEY=你的API密钥
-
-# Azure 语音服务（TTS）
-AZURE_SPEECH_KEY=你的Azure语音密钥
-AZURE_SPEECH_REGION=southeastasia
-
-# FlashHead 模型规格：lite（单卡实时）或 pro（需双卡 RTX5090）
-FLASHHEAD_MODEL_TYPE=lite
-```
-
-### 5. 安装依赖环境
-
-需要先安装 [Miniconda](https://docs.conda.io/en/latest/miniconda.html)。
-
-**第一步：用 environment.yml 创建 conda 环境**
+建议使用 Python 3.10 和 Conda：
 
 ```bash
 cd demo
 conda env create -f environment.yml --name digital-human
 conda activate digital-human
+pip install -r requirements.txt
 ```
 
-**第二步：安装 PyTorch（CUDA 12.1）**
+如需 GPU 运行 FlashHead，请确认 PyTorch CUDA 版本与显卡驱动匹配。本项目的 `requirements.txt` 默认使用 CUDA 12.1 的 PyTorch wheel 源。
+
+## 配置 .env
+
+仓库中的 [demo/.env](demo/.env) 是可提交模板，不包含真实密钥。首次运行前至少填写：
+
+```ini
+API_KEY=你的 LLM API Key
+AZURE_SPEECH_KEY=你的 Azure Speech Key
+AZURE_SPEECH_REGION=southeastasia
+```
+
+路径配置默认都是相对路径，通常不需要修改：
+
+```ini
+ASR_MODEL_PATH=models/SenseVoiceSmall
+VECTOR_DB_PATH=vector_db
+FLASHHEAD_REPO_DIR=../SoulX-FlashHead
+FLASHHEAD_CKPT_DIR=../SoulX-FlashHead/models/SoulX-FlashHead-1_3B
+FLASHHEAD_WAV2VEC_DIR=../SoulX-FlashHead/models/wav2vec2-base-960h
+```
+
+如果 Azure Key 未填写，`server.py` 仍可启动，但回复会降级为文字。FlashHead 默认会一直等待视频生成完成；调试 TTS 链路时可临时关闭 FlashHead。
+
+## 模型与数据
+
+这些大文件不应提交到仓库，初始化脚本会尽量自动准备：
+
+| 路径 | 用途 |
+| --- | --- |
+| `demo/models/SenseVoiceSmall/` | 后端 ASR |
+| `demo/models/bge-small-zh-v1.5/` | RAG 向量模型 |
+| `demo/vector_db/` | ChromaDB 知识库 |
+| `demo/datasets/SoulChat/` | SoulChat 数据 |
+| `../SoulX-FlashHead/` | FlashHead 仓库和权重 |
+
+PsyQA 数据需要手动放到：
+
+```text
+demo/psy_data.json
+```
+
+危机分类器训练数据如需启用完整训练流程，放到：
+
+```text
+demo/datasets/SOS-1K/suicideDataProcessing/data/fine-grained/
+```
+
+## 常见问题
+
+### 点击“说话”没反应或识别不到
+
+请确认浏览器已允许麦克风权限，并通过 `http://localhost:8000` 访问页面。现在说话按钮会使用浏览器录音，然后发给后端 `/asr`，不再依赖浏览器内置语音识别。
+
+### FlashHead 跑完但没有声音或口型
+
+检查终端是否出现 `[SYNTH] video saved`。如果没有，通常是 FlashHead 仍在生成、前端连接已断开，或视频文件没有成功写入。调试时可临时设置：
+
+```ini
+FLASHHEAD_ENABLED=0
+```
+
+先验证 TTS 音频链路；再恢复 FlashHead。
+
+### 不想把本地数据提交到仓库
+
+`.gitignore` 已排除模型、数据集、向量库、日志、缓存、用户数据和上传头像。提交前建议运行：
 
 ```bash
-pip install torch==2.5.1+cu121 torchaudio==2.5.1+cu121 \
-    --index-url https://download.pytorch.org/whl/cu121
+git status --short
 ```
 
-**第三步：安装 SoulX-FlashHead 依赖**
+确认没有真实密钥、模型权重或个人数据进入暂存区。
 
-```bash
-pip install -r ../SoulX-FlashHead/requirements.txt
+## 目录说明
+
+```text
+demo/
+  server.py              FastAPI 主服务
+  public/                前端页面与静态资源
+  asr.py                 SenseVoiceSmall 语音识别
+  tts.py                 Azure TTS
+  flashhead_adapter.py   SoulX-FlashHead 适配层
+  init_project.py        一键初始化检查
+  build_kb*.py           知识库构建脚本
+avatars/portraits/       预设数字人头像
+SoulX-FlashHead/          FlashHead 源码与模型目录（不提交）
 ```
-
-**第四步：安装 FlashAttention**
-
-```bash
-pip install ninja
-pip install flash_attn==2.8.0.post2 --no-build-isolation
-```
-
-> 编译太慢可从 [此处](https://github.com/Dao-AILab/flash-attention/releases/tag/v2.8.0.post2) 下载对应 Python3.10 + cu121 的预编译 `.whl` 直接安装。
-
-**第五步：安装 ffmpeg**
-
-```bash
-conda install -c conda-forge ffmpeg=7 -y
-```
-
-### 6. 构建知识库
-
-首次运行前执行（会自动下载 BGE-small-zh-v1.5 嵌入模型）：
-
-```bash
-cd demo
-python build_kb.py
-```
-
-### 7. 启动服务
-
-```bash
-cd demo
-python server.py
-```
-
-浏览器访问 `http://localhost:8000`
-
----
-
-## 可选功能配置
-
-### 方言切换
-
-系统内置三种方言，**使用 Azure TTS 时无需任何额外配置或参考音频**：
-
-| 方言 | 女声 | 男声 |
-|------|------|------|
-| 普通话（默认） | zh-CN-XiaoxiaoNeural | zh-CN-YunxiNeural / zh-CN-YunzeNeural |
-| 粤语 | zh-HK-HiuGaaiNeural | zh-HK-WanLungNeural |
-| 台湾腔 | zh-TW-HsiaoChenNeural | zh-TW-YunJheNeural |
-
-在聊天页面左侧「🗣️ 方言设置」区域点击对应按钮即可实时切换，下一条回复立即生效。
-
-### 空闲动画
-
-无需额外配置。服务器首次启动时会在后台自动用 FlashHead 为每个角色生成 2.5 秒循环待机视频，缓存于 `demo/public/idle/`。下次启动直接读取缓存。
-
----
-
-## Docker 部署
-
-### 前提条件
-
-- 宿主机已安装 NVIDIA 驱动（>= 530）
-- 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-- SoulX-FlashHead 仓库与模型已按第 2、3 步下载完成
-
-### 启动 Docker Desktop（以 Windows 为例）
-
-双击运行 Docker Desktop
-
-### 构建并启动
-
-```bash
-cd demo
-docker compose up          # 前台启动（可看日志）
-docker compose up -d       # 后台启动
-docker compose down        # 停止
-```
-
-SoulX-FlashHead 模型目录通过 volume 挂载到容器，无需打包进镜像，按需修改 `demo/docker-compose.yml` 中的宿主机路径即可。
-

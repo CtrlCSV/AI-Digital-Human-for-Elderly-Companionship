@@ -1,4 +1,4 @@
-"""
+﻿"""
 Azure AI Speech TTS 引擎
 - generate_audio_bytes_with_visemes(): 完整音频 + viseme 口型时间轴
 - stream_audio_chunks(): 真正流式 yield 音频块
@@ -90,12 +90,16 @@ class AzureTTSEngine:
     def __init__(self):
         key = os.environ.get("AZURE_SPEECH_KEY", "")
         region = os.environ.get("AZURE_SPEECH_REGION", "")
-        if not key or not region:
-            raise RuntimeError(
-                "Azure TTS 需要设置环境变量 AZURE_SPEECH_KEY 和 AZURE_SPEECH_REGION"
-            )
         self._key = key
         self._region = region
+
+    def _ensure_configured(self) -> None:
+        self._key = os.environ.get("AZURE_SPEECH_KEY", self._key)
+        self._region = os.environ.get("AZURE_SPEECH_REGION", self._region)
+        if not self._key or not self._region:
+            raise TTSGenerationError(
+                "Azure TTS 未配置：请在 demo/.env 中填写 AZURE_SPEECH_KEY 和 AZURE_SPEECH_REGION"
+            )
 
     # ── SSML 构建 ─────────────────────────────────────────────────────────────
     def _build_ssml(self, text: str, role: str, dialect: str = "mandarin") -> str:
@@ -130,6 +134,7 @@ class AzureTTSEngine:
 
     # ── 创建 SpeechConfig ─────────────────────────────────────────────────────
     def _make_speech_config(self) -> speechsdk.SpeechConfig:
+        self._ensure_configured()
         cfg = speechsdk.SpeechConfig(subscription=self._key, region=self._region)
         cfg.set_speech_synthesis_output_format(
             speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3

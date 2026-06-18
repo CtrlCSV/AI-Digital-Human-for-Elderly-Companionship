@@ -1,4 +1,4 @@
-"""
+﻿"""
 Family contact module.
 
 This file intentionally does not call phone/SMS providers directly. It stores

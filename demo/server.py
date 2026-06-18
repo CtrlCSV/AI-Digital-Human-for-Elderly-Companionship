@@ -53,6 +53,7 @@ DIALECTS = {
 
 IDLE_SEGMENT_COUNT = 1
 IDLE_DURATION_SEC = 25.0
+FLASHHEAD_ENABLED = os.environ.get("FLASHHEAD_ENABLED", "1").lower() not in {"0", "false", "no"}
 
 
 def _idle_segment_paths(role: str) -> list:
@@ -72,7 +73,7 @@ async def _generate_preset_idle_videos():
     if not flashhead_adapter.is_available():
         return
     await asyncio.sleep(3)
-    role_map = {1: "girl", 3: "boy"}
+    role_map = {1: "girl", 2: "boy"}
     _pub = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
     for avatar_id, role in role_map.items():
         if _idle_segment_paths(role):
@@ -121,6 +122,8 @@ app.add_middleware(
 )
 
 _PUBLIC_DIR = os.path.join(_HERE, "public")
+_GENERATED_VIDEO_DIR = os.path.join(_PUBLIC_DIR, "generated_videos")
+os.makedirs(_GENERATED_VIDEO_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=_PUBLIC_DIR), name="static")
 
@@ -149,6 +152,15 @@ def sanitize_chunk(text: str) -> str:
     return text.strip()
 
 
+def save_generated_video(video_mp4: bytes, response_id: int) -> str:
+    stamp = int(time.time() * 1000)
+    filename = f"response_{response_id}_{stamp}.mp4"
+    path = os.path.join(_GENERATED_VIDEO_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(video_mp4)
+    return f"/static/generated_videos/{filename}"
+
+
 EMOTION_INTERVAL = 1.0
 CUSTOM_AVATAR_ID = 99  # 与前端 script.js 自定义形象的 avatar.id 保持一致
 response_id_counter = count(1)
@@ -171,7 +183,7 @@ class ResponseState:
 def resolve_role(avatar_id):
     if avatar_id == 1:
         return "girl"
-    if avatar_id == 3:
+    if avatar_id == 2:
         return "boy"
     return "girl"
 
@@ -224,6 +236,10 @@ async def synthesize_pipeline(clean_text: str, role: str, avatar_id, dialect: st
     """整句合成：TTS → FlashHead，返回 (audio_bytes, video_mp4)。"""
     print(f"[SYNTH] TTS start, chars={len(clean_text)}, role={role}, dialect={dialect}")
     audio_bytes = await tts_engine.generate_audio_bytes(clean_text, role=role, dialect=dialect)
+    if not FLASHHEAD_ENABLED:
+        print(f"[SYNTH] TTS done, audio={len(audio_bytes)} bytes; FlashHead disabled")
+        return audio_bytes, None
+
     print(f"[SYNTH] TTS done, audio={len(audio_bytes)} bytes; FlashHead start")
     loop = asyncio.get_running_loop()
     video_future = loop.run_in_executor(
@@ -316,7 +332,12 @@ async def process_user_message(
                     "isFinalChunk": True,
                 }
                 if video_mp4:
-                    payload["video"] = base64.b64encode(video_mp4).decode("utf-8")
+                    video_url = save_generated_video(video_mp4, response_state.response_id)
+                    payload["videoUrl"] = video_url
+                    payload["videoBytes"] = len(video_mp4)
+                    if audio_bytes:
+                        payload["audio"] = base64.b64encode(audio_bytes).decode("utf-8")
+                    print(f"[SYNTH] video saved, bytes={len(video_mp4)}, url={video_url}")
                 elif audio_bytes:
                     payload["audio"] = base64.b64encode(audio_bytes).decode("utf-8")
                 else:
@@ -520,9 +541,9 @@ async def upload_avatar(
 
     ext = "png" if "png" in (file.content_type or "") else "jpg"
 
-    if slot in (1, 3):
-        avatar_filenames = {1: "avatar-xiaoli", 3: "avatar-xiaoming"}
-        role_names = {1: "girl", 3: "boy"}
+    if slot in (1, 2):
+        avatar_filenames = {1: "avatar-xiaoli", 2: "avatar-xiaoming"}
+        role_names = {1: "girl", 2: "boy"}
         fname = f"{avatar_filenames[slot]}.{ext}"
         save_path = os.path.join(_PUBLIC_DIR, fname)
         flashhead_adapter.AVATAR_PORTRAITS[slot] = save_path

@@ -1,5 +1,6 @@
 ﻿import io
 import os
+import subprocess
 import tempfile
 import wave
 
@@ -69,6 +70,8 @@ def _decode_wav_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
 def _audio_bytes_to_wav_file(audio_bytes: bytes) -> str:
     if audio_bytes[:4] == b"RIFF":
         audio, sample_rate = _decode_wav_bytes(audio_bytes)
+    elif _looks_like_container_audio(audio_bytes):
+        return _browser_audio_to_wav_file(audio_bytes)
     else:
         audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         sample_rate = 16000
@@ -83,6 +86,52 @@ def _audio_bytes_to_wav_file(audio_bytes: bytes) -> str:
         wf.setframerate(sample_rate)
         wf.writeframes(pcm.tobytes())
     return path
+
+
+def _looks_like_container_audio(audio_bytes: bytes) -> bool:
+    return (
+        audio_bytes[:4] in (b"\x1aE\xdf\xa3", b"OggS")
+        or audio_bytes[:3] == b"ID3"
+        or audio_bytes[4:8] == b"ftyp"
+    )
+
+
+def _browser_audio_to_wav_file(audio_bytes: bytes) -> str:
+    """Convert MediaRecorder output such as WebM/Opus or Ogg/Opus to 16 kHz WAV."""
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as exc:
+        raise RuntimeError("浏览器录音需要 ffmpeg/imageio-ffmpeg 才能转码") from exc
+
+    in_fd, in_path = tempfile.mkstemp(suffix=".webm")
+    out_fd, out_path = tempfile.mkstemp(suffix=".wav")
+    os.close(in_fd)
+    os.close(out_fd)
+    try:
+        with open(in_path, "wb") as f:
+            f.write(audio_bytes)
+        cmd = [
+            ffmpeg_exe, "-y", "-hide_banner", "-loglevel", "error",
+            "-i", in_path,
+            "-ac", "1",
+            "-ar", "16000",
+            "-sample_fmt", "s16",
+            out_path,
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        return out_path
+    except Exception:
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+        raise
+    finally:
+        try:
+            os.remove(in_path)
+        except OSError:
+            pass
 
 
 class CustomASR:
@@ -126,7 +175,7 @@ class CustomASR:
 
     def _record_microphone(self) -> bytes:
         with sr.Microphone() as source:
-            print("绯荤粺宸插氨缁紝璇疯璇?..")
+            print("系统已就绪，请说话...")
             self.recognizer.adjust_for_ambient_noise(source, duration=0.8)
             audio = self.recognizer.listen(source)
         return audio.get_wav_data(convert_rate=16000, convert_width=2)
@@ -151,7 +200,7 @@ class CustomASR:
                 text = self.postprocess(text)
             return text.strip()
         except Exception as e:
-            return f"璇嗗埆杩囩▼鍑洪敊: {e}"
+            return f"识别过程出错: {e}"
         finally:
             try:
                 os.remove(wav_path)
@@ -164,7 +213,7 @@ asr_engine = CustomASR()
 if __name__ == "__main__":
     while True:
         result = asr_engine.speech_to_text()
-        print(f"璇嗗埆缁撴灉: {result}")
+        print(f"识别结果: {result}")
 
 
 

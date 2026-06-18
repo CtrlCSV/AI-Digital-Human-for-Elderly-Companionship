@@ -1,4 +1,4 @@
-import aiohttp
+﻿import aiohttp
 import asyncio
 import json
 import os
@@ -328,15 +328,15 @@ PERSONA_PROFILES = {
             "        - 句尾偶尔加一个柔软的小尾音，比如「呢」「呀」「啦」，让语气更亲切。"
         ),
     },
-    3: {
-        "name": "小明",
-        "self_intro": "我是小明，一个阳光、爱聊天的年轻人。",
+    2: {
+        "name": "阿哲",
+        "self_intro": "我是阿哲，一个理性又有点幽默的陪伴伙伴。",
         "style": (
-            "性格开朗有活力，像一个愿意一起探索生活的新朋友。\n"
-            "        - 说话有朝气，多用积极正向的词（「挺好的」「真不错」「我陪你」「咱一块儿」）。\n"
-            "        - 对所有用户保持耐心和尊重，不预设对方年龄、职业或家庭身份。\n"
-            "        - 喜欢分享一点新鲜视角的小见闻（运动、兴趣、新鲜事、健康小贴士），但不卖弄。\n"
-            "        - 遇到用户情绪低落时，语速放慢、语气变柔，先做倾听者再做鼓励者。"
+            "性格沉稳清爽，擅长把复杂想法慢慢理清楚。\n"
+            "        - 语气平等、有分寸，偶尔用一点轻松幽默缓和气氛。\n"
+            "        - 喜欢用生活化例子解释问题，但点到为止，不长篇大论。\n"
+            "        - 称呼对方像朋友（如「你」「朋友」「咱们」），不预设年龄和身份。\n"
+            "        - 会用轻松的表达化解沉重情绪，但绝不轻视用户的感受，最后要落到真诚支持上。"
         ),
     },
 }
@@ -379,6 +379,33 @@ def build_crisis_prompt_body() -> str:
         "        # 输出格式\n"
         "        2-4 个短句，每句 15-40 字，口语化，语气温暖沉稳。\n"
     )
+
+
+def _extract_labeled_tool_body(tool_context: str, label: str) -> str:
+    text = (tool_context or "").strip()
+    marker = f"【{label}】"
+    if marker in text:
+        text = text.split(marker, 1)[1]
+    if "【念稿要求】" in text:
+        text = text.split("【念稿要求】", 1)[0]
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not (stripped.startswith("【") and stripped.endswith("】")):
+            lines.append(stripped)
+    return "".join(lines).strip()
+
+
+def _build_weather_tool_reply(tool_context: str, user_name: str = "") -> str:
+    body = _extract_labeled_tool_body(tool_context, "实时天气")
+    if not body or "失败" in body or "异常" in body or "没查到" in body:
+        return "刚才没查到天气结果，等会儿再帮你看看。"
+
+    prefix = f"{user_name}，" if user_name else ""
+    reply = prefix + body
+    if not reply.endswith(("。", "！", "？")):
+        reply += "。"
+    return reply + "出门前可以留意一下天气变化。"
 
 
 async def llm_chat(user_text, emotion, session_id, user_name: str = "", avatar_id: int = 1, user_id: str = "", city: str = "", crisis_mode: bool = False):
@@ -428,6 +455,13 @@ async def llm_chat(user_text, emotion, session_id, user_name: str = "", avatar_i
         )
     else:
         address_block = ""
+
+    # 天气等实时数字对准确性要求高，直接复述后端格式化结果，避免 LLM 把 24 度改成 224 度。
+    if tool_context and tool_name == "weather":
+        weather_reply = _build_weather_tool_reply(tool_context, safe_user_name)
+        print(f"[Tool weather direct] {weather_reply!r}")
+        yield weather_reply
+        return
 
     # 工具命中时切换成"信息播报模式"，避免心理陪护 persona 把工具数据淹没
     if tool_context:
